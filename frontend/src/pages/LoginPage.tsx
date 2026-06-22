@@ -1,7 +1,17 @@
 import { LogIn } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { StatusMessage } from "../components/StatusMessage";
+import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert";
+import { Button } from "../components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
 import { useAuth } from "../hooks/useAuth";
 
 type LocationState = {
@@ -41,40 +51,55 @@ export function LoginPage() {
   }
 
   return (
-    <section className="auth-panel">
-      <div>
-        <p className="eyebrow">Welcome back</p>
-        <h1>Login</h1>
-      </div>
-      {error ? <StatusMessage title="Could not login" message={error} tone="error" /> : null}
-      <form className="form-grid single-column" onSubmit={handleSubmit}>
-        <label>
-          <span>Email</span>
-          <input
-            required
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-          />
-        </label>
-        <label>
-          <span>Password</span>
-          <input
-            required
-            minLength={8}
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-          />
-        </label>
-        <button type="submit" className="primary-button" disabled={isSubmitting}>
-          <LogIn aria-hidden="true" size={18} />
-          {isSubmitting ? "Logging in" : "Login"}
-        </button>
-      </form>
-      <p className="inline-help">
-        Need an account? <Link to="/register">Register</Link>
-      </p>
-    </section>
+    <Card className="mx-auto w-[min(680px,100%)]">
+      <CardHeader>
+        <p className="text-xs font-extrabold uppercase text-[var(--app-accent)]">
+          Welcome back
+        </p>
+        <CardTitle className="text-3xl">Login</CardTitle>
+        <CardDescription>Access your buyer or seller workspace.</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        {error ? (
+          <Alert variant="destructive">
+            <AlertTitle>Could not login</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : null}
+        <form className="grid gap-4" onSubmit={handleSubmit}>
+          <div className="grid gap-2">
+            <Label htmlFor="login-email">Email</Label>
+            <Input
+              id="login-email"
+              required
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="login-password">Password</Label>
+            <Input
+              id="login-password"
+              required
+              minLength={8}
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+          </div>
+          <Button type="submit" disabled={isSubmitting}>
+            <LogIn aria-hidden="true" />
+            {isSubmitting ? "Logging in" : "Login"}
+          </Button>
+        </form>
+        <p className="text-muted-foreground">
+          Need an account?{" "}
+          <Link to="/register" className="font-bold text-primary">
+            Register
+          </Link>
+        </p>
+      </CardContent>
+    </Card>
   );
 }

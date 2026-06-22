@@ -12,7 +12,11 @@ export function ProtectedRoute({ children, role }: ProtectedRouteProps) {
   const location = useLocation();
 
   if (isLoading) {
-    return <div className="surface-state">Checking your session...</div>;
+    return (
+      <div className="rounded-lg border bg-card p-4 text-sm text-muted-foreground">
+        Checking your session...
+      </div>
+    );
   }
 
   if (!isAuthenticated) {

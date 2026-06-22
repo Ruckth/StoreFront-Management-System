@@ -1,10 +1,12 @@
 import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
-import { ProductForm } from "../components/ProductForm";
+import { ProductForm, ProductStepForm } from "../components/ProductForm";
 import { StatusMessage } from "../components/StatusMessage";
+import { Button } from "../components/ui/button";
 import { useAuth } from "../hooks/useAuth";
-import { createProduct, getProduct, updateProduct } from "../lib/api";
+import { getProduct, updateProduct } from "../lib/api";
+import { createLocalProduct } from "../lib/localProducts";
 import type { Product, ProductFormValues } from "../types";
 
 type ProductFormPageProps = {
@@ -65,6 +67,30 @@ export function ProductFormPage({ mode }: ProductFormPageProps) {
   }, [id, mode]);
 
   async function handleSubmit(values: ProductFormValues) {
+    if (mode === "create") {
+      if (!user) {
+        setError("You need to login again before saving products.");
+        return;
+      }
+
+      setIsSubmitting(true);
+      setError("");
+
+      try {
+        await createLocalProduct(values, user);
+        navigate("/seller/products");
+      } catch (caughtError) {
+        setError(
+          caughtError instanceof Error
+            ? caughtError.message
+            : "Product could not be saved.",
+        );
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
     if (!accessToken) {
       setError("You need to login again before saving products.");
       return;
@@ -74,9 +100,7 @@ export function ProductFormPage({ mode }: ProductFormPageProps) {
     setError("");
 
     try {
-      if (mode === "create") {
-        await createProduct(values, accessToken);
-      } else if (id) {
+      if (id) {
         await updateProduct(id, values, accessToken);
       }
       navigate("/seller/products");
@@ -92,7 +116,11 @@ export function ProductFormPage({ mode }: ProductFormPageProps) {
   }
 
   if (isLoading) {
-    return <div className="surface-state">Loading product form...</div>;
+    return (
+      <div className="rounded-lg border bg-card p-4 text-sm text-muted-foreground">
+        Loading product form...
+      </div>
+    );
   }
 
   if (mode === "edit" && product && product.seller.id !== user?.id) {
@@ -100,20 +128,26 @@ export function ProductFormPage({ mode }: ProductFormPageProps) {
   }
 
   return (
-    <section className="page-stack narrow-page">
-      <Link to="/seller/products" className="back-link">
-        <ArrowLeft aria-hidden="true" size={18} />
-        Back to inventory
-      </Link>
-      <div className="page-heading">
+    <section className="mx-auto flex w-[min(680px,100%)] flex-col gap-4">
+      <Button asChild variant="ghost" className="w-fit px-0 text-muted-foreground hover:text-primary">
+        <Link to="/seller/products">
+          <ArrowLeft aria-hidden="true" size={18} />
+          Back to inventory
+        </Link>
+      </Button>
+      <div className="flex items-end justify-between gap-4 max-[820px]:items-stretch">
         <div>
-          <p className="eyebrow">Seller product</p>
+          <p className="text-xs font-extrabold uppercase text-[var(--app-accent)]">
+            Seller product
+          </p>
           <h1>{mode === "create" ? "New product" : "Edit product"}</h1>
         </div>
       </div>
       {error ? <StatusMessage title="Could not save product" message={error} tone="error" /> : null}
       {mode === "edit" && !product ? (
         <StatusMessage title="Product not found" />
+      ) : mode === "create" ? (
+        <ProductStepForm isSubmitting={isSubmitting} onSubmit={handleSubmit} />
       ) : (
         <ProductForm
           initialProduct={product ?? undefined}

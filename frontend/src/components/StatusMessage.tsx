@@ -1,3 +1,5 @@
+import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+
 type StatusMessageProps = {
   title: string;
   message?: string;
@@ -9,10 +11,16 @@ export function StatusMessage({
   message,
   tone = "neutral",
 }: StatusMessageProps) {
+  const variant = tone === "error" ? "destructive" : "default";
+
   return (
-    <div className={`status-message status-${tone}`} role={tone === "error" ? "alert" : "status"}>
-      <strong>{title}</strong>
-      {message ? <span>{message}</span> : null}
-    </div>
+    <Alert
+      variant={variant}
+      role={tone === "error" ? "alert" : "status"}
+      className={tone === "success" ? "border-green-600/25 bg-green-50 text-green-800" : ""}
+    >
+      <AlertTitle>{title}</AlertTitle>
+      {message ? <AlertDescription>{message}</AlertDescription> : null}
+    </Alert>
   );
 }

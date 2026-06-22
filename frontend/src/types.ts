@@ -21,7 +21,7 @@ export type ProductSeller = {
 };
 
 export type Product = {
-  id: number;
+  id: number | string;
   seller: ProductSeller;
   image: string;
   title: string;

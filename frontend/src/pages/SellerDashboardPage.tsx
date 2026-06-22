@@ -2,8 +2,15 @@ import { Edit3, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { StatusMessage } from "../components/StatusMessage";
+import { Button } from "../components/ui/button";
 import { useAuth } from "../hooks/useAuth";
 import { deleteProduct, listProducts } from "../lib/api";
+import {
+  deleteLocalProduct,
+  isLocalProductId,
+  listLocalProducts,
+  mergeProducts,
+} from "../lib/localProducts";
 import type { Product } from "../types";
 
 export function SellerDashboardPage() {
@@ -12,7 +19,7 @@ export function SellerDashboardPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<Product["id"] | null>(null);
 
   const sellerProducts = useMemo(
     () => products.filter((product) => product.seller.id === user?.id),
@@ -28,15 +35,15 @@ export function SellerDashboardPage() {
       try {
         const response = await listProducts();
         if (isMounted) {
-          setProducts(response);
+          setProducts(mergeProducts(response));
         }
       } catch (caughtError) {
         if (isMounted) {
-          setError(
-            caughtError instanceof Error
-              ? caughtError.message
-              : "Seller products could not be loaded.",
-          );
+          const localProducts = listLocalProducts();
+          setProducts(localProducts);
+          setError(localProducts.length > 0 ? "" : caughtError instanceof Error
+            ? caughtError.message
+            : "Seller products could not be loaded.");
         }
       } finally {
         if (isMounted) {
@@ -68,7 +75,11 @@ export function SellerDashboardPage() {
     setSuccess("");
 
     try {
-      await deleteProduct(product.id, accessToken);
+      if (isLocalProductId(product.id)) {
+        deleteLocalProduct(product.id);
+      } else {
+        await deleteProduct(product.id, accessToken);
+      }
       setProducts((current) => current.filter((item) => item.id !== product.id));
       setSuccess("Product deleted.");
     } catch (caughtError) {
@@ -83,67 +94,83 @@ export function SellerDashboardPage() {
   }
 
   return (
-    <section className="page-stack">
-      <div className="page-heading">
+    <section className="flex flex-col gap-4">
+      <div className="flex items-end justify-between gap-4 max-[820px]:items-stretch">
         <div>
-          <p className="eyebrow">Seller dashboard</p>
+          <p className="text-xs font-extrabold uppercase text-[var(--app-accent)]">
+            Seller dashboard
+          </p>
           <h1>Inventory</h1>
         </div>
-        <Link to="/seller/products/new" className="primary-button">
-          <Plus aria-hidden="true" size={18} />
-          New product
-        </Link>
+        <Button asChild>
+          <Link to="/seller/products/new">
+            <Plus aria-hidden="true" size={18} />
+            New product
+          </Link>
+        </Button>
       </div>
       {error ? <StatusMessage title="Dashboard error" message={error} tone="error" /> : null}
       {success ? <StatusMessage title={success} tone="success" /> : null}
-      {isLoading ? <div className="surface-state">Loading inventory...</div> : null}
+      {isLoading ? (
+        <div className="rounded-lg border bg-card p-4 text-sm text-muted-foreground">
+          Loading inventory...
+        </div>
+      ) : null}
       {!isLoading && !error && sellerProducts.length === 0 ? (
         <StatusMessage title="No seller products yet" message="Create a product to start selling." />
       ) : null}
       {sellerProducts.length > 0 ? (
-        <div className="table-shell">
-          <table>
+        <div className="overflow-x-auto rounded-lg border bg-card">
+          <table className="w-full min-w-[720px] border-collapse">
             <thead>
               <tr>
-                <th>Product</th>
-                <th>Price</th>
-                <th>Quantity</th>
-                <th>Updated</th>
-                <th>Actions</th>
+                <th className="border-b p-3 text-left text-xs font-extrabold uppercase text-muted-foreground">Product</th>
+                <th className="border-b p-3 text-left text-xs font-extrabold uppercase text-muted-foreground">Price</th>
+                <th className="border-b p-3 text-left text-xs font-extrabold uppercase text-muted-foreground">Quantity</th>
+                <th className="border-b p-3 text-left text-xs font-extrabold uppercase text-muted-foreground">Updated</th>
+                <th className="border-b p-3 text-left text-xs font-extrabold uppercase text-muted-foreground">Actions</th>
               </tr>
             </thead>
             <tbody>
               {sellerProducts.map((product) => (
                 <tr key={product.id}>
-                  <td>
-                    <div className="table-product">
-                      <img src={product.image} alt="" />
+                  <td className="border-b p-3">
+                    <div className="flex items-center gap-3 font-bold">
+                      <img
+                        src={product.image}
+                        alt=""
+                        className="h-12 w-12 rounded-md bg-muted object-cover"
+                      />
                       <span>{product.title}</span>
                     </div>
                   </td>
-                  <td>{formatCurrency(product.unit_price)}</td>
-                  <td>{product.available_quantity}</td>
-                  <td>{new Date(product.updated_at).toLocaleDateString()}</td>
-                  <td>
-                    <div className="row-actions">
-                      <Link
-                        to={`/seller/products/${product.id}/edit`}
-                        className="icon-button"
-                        aria-label={`Edit ${product.title}`}
-                        title={`Edit ${product.title}`}
-                      >
-                        <Edit3 aria-hidden="true" size={18} />
-                      </Link>
-                      <button
+                  <td className="border-b p-3">{formatCurrency(product.unit_price)}</td>
+                  <td className="border-b p-3">{product.available_quantity}</td>
+                  <td className="border-b p-3">{new Date(product.updated_at).toLocaleDateString()}</td>
+                  <td className="border-b p-3">
+                    <div className="flex gap-2">
+                      {isLocalProductId(product.id) ? null : (
+                        <Button asChild variant="outline" size="icon">
+                          <Link
+                            to={`/seller/products/${product.id}/edit`}
+                            aria-label={`Edit ${product.title}`}
+                            title={`Edit ${product.title}`}
+                          >
+                            <Edit3 aria-hidden="true" size={18} />
+                          </Link>
+                        </Button>
+                      )}
+                      <Button
                         type="button"
-                        className="icon-button danger"
+                        variant="destructive"
+                        size="icon"
                         aria-label={`Delete ${product.title}`}
                         title={`Delete ${product.title}`}
                         disabled={deletingId === product.id}
                         onClick={() => handleDelete(product)}
                       >
                         <Trash2 aria-hidden="true" size={18} />
-                      </button>
+                      </Button>
                     </div>
                   </td>
                 </tr>
