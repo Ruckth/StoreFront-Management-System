@@ -1,7 +1,10 @@
 import { Route, Routes } from "react-router-dom";
 import { AppLayout } from "./components/AppLayout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { CartPage } from "./pages/CartPage";
 import { HomePage } from "./pages/HomePage";
+import { OrderDetailPage } from "./pages/OrderDetailPage";
+import { OrderHistoryPage } from "./pages/OrderHistoryPage";
 import { ProductFormPage } from "./pages/ProductFormPage";
 import { ProductDetailPage } from "./pages/ProductDetailPage";
 import { ProductListPage } from "./pages/ProductListPage";
@@ -19,6 +22,30 @@ export default function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/products" element={<ProductListPage />} />
         <Route path="/products/:id" element={<ProductDetailPage />} />
+        <Route
+          path="/cart"
+          element={
+            <ProtectedRoute role="buyer">
+              <CartPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/orders"
+          element={
+            <ProtectedRoute role="buyer">
+              <OrderHistoryPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/orders/:id"
+          element={
+            <ProtectedRoute role="buyer">
+              <OrderDetailPage />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/seller/products"
           element={

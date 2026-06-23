@@ -20,6 +20,10 @@ def image_file(name="product.jpg"):
     return SimpleUploadedFile(name, buffer.read(), content_type="image/jpeg")
 
 
+def invalid_image_file(name="product.txt"):
+    return SimpleUploadedFile(name, b"not an image", content_type="text/plain")
+
+
 @override_settings(MEDIA_ROOT="/tmp/storefront-test-media")
 class ProductAPITests(APITestCase):
     def setUp(self):
@@ -74,6 +78,19 @@ class ProductAPITests(APITestCase):
         self.assertEqual(response.data["title"], "Notebook")
         self.assertEqual(response.data["seller"]["email"], "seller@example.com")
 
+    def test_seller_can_list_and_retrieve_products(self):
+        product = self.create_product(title="Notebook")
+        self.create_product(seller=self.other_seller, title="Pen")
+        self.client.force_authenticate(self.seller)
+
+        list_response = self.client.get(reverse("product-list"))
+        detail_response = self.client.get(reverse("product-detail", args=[product.id]))
+
+        self.assertEqual(list_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(detail_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(list_response.data), 2)
+        self.assertEqual(detail_response.data["title"], "Notebook")
+
     def test_buyer_cannot_create_product(self):
         self.client.force_authenticate(self.buyer)
 
@@ -93,6 +110,18 @@ class ProductAPITests(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_buyer_can_list_and_retrieve_products(self):
+        product = self.create_product(title="Notebook")
+        self.client.force_authenticate(self.buyer)
+
+        list_response = self.client.get(reverse("product-list"))
+        detail_response = self.client.get(reverse("product-detail", args=[product.id]))
+
+        self.assertEqual(list_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(detail_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(list_response.data[0]["title"], "Notebook")
+        self.assertEqual(detail_response.data["title"], "Notebook")
 
     def test_seller_can_edit_own_product(self):
         product = self.create_product()
@@ -118,6 +147,37 @@ class ProductAPITests(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_buyer_cannot_edit_or_delete_products(self):
+        product = self.create_product()
+        self.client.force_authenticate(self.buyer)
+
+        update_response = self.client.patch(
+            reverse("product-detail", args=[product.id]),
+            {"title": "Buyer Update"},
+            format="json",
+        )
+        delete_response = self.client.delete(reverse("product-detail", args=[product.id]))
+
+        self.assertEqual(update_response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(delete_response.status_code, status.HTTP_403_FORBIDDEN)
+        product.refresh_from_db()
+        self.assertEqual(product.title, "Notebook")
+
+    def test_anonymous_user_cannot_edit_or_delete_products(self):
+        product = self.create_product()
+
+        update_response = self.client.patch(
+            reverse("product-detail", args=[product.id]),
+            {"title": "Anonymous Update"},
+            format="json",
+        )
+        delete_response = self.client.delete(reverse("product-detail", args=[product.id]))
+
+        self.assertEqual(update_response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(delete_response.status_code, status.HTTP_401_UNAUTHORIZED)
+        product.refresh_from_db()
+        self.assertEqual(product.title, "Notebook")
 
     def test_seller_can_delete_own_product(self):
         product = self.create_product()
@@ -145,6 +205,32 @@ class ProductAPITests(APITestCase):
         self.assertEqual(list_response.status_code, status.HTTP_200_OK)
         self.assertEqual(detail_response.status_code, status.HTTP_200_OK)
         self.assertEqual(list_response.data[0]["title"], "Notebook")
+
+    def test_missing_image_is_rejected(self):
+        self.client.force_authenticate(self.seller)
+        payload = self.product_payload()
+        payload.pop("image")
+
+        response = self.client.post(
+            reverse("product-list"),
+            payload,
+            format="multipart",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("image", response.data)
+
+    def test_invalid_image_is_rejected(self):
+        self.client.force_authenticate(self.seller)
+
+        response = self.client.post(
+            reverse("product-list"),
+            self.product_payload(image=invalid_image_file()),
+            format="multipart",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("image", response.data)
 
     def test_negative_price_is_rejected(self):
         self.client.force_authenticate(self.seller)

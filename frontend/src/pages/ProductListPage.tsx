@@ -1,12 +1,18 @@
 import { Search, ShoppingCart } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { StatusMessage } from "../components/StatusMessage";
 import { Button } from "../components/ui/button";
 import { Checkbox } from "../components/ui/checkbox";
 import { Input } from "../components/ui/input";
 import { useAuth } from "../hooks/useAuth";
-import { listProducts } from "../lib/api";
-import { listLocalProducts, mergeProducts, seedDemoProducts } from "../lib/localProducts";
+import { addCartItem, listProducts } from "../lib/api";
+import {
+  isLocalProductId,
+  listLocalProducts,
+  mergeProducts,
+  seedDemoProducts,
+} from "../lib/localProducts";
 import type { Product } from "../types";
 
 type ProductListLocationState = {
@@ -22,14 +28,17 @@ const STOCK_FILTERS: Array<{ label: string; value: StockFilter }> = [
 ];
 
 export function ProductListPage() {
-  const { logout } = useAuth();
+  const { accessToken, logout, user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
   const [stockFilter, setStockFilter] = useState<StockFilter>("in-stock");
   const [error, setError] = useState("");
+  const [cartError, setCartError] = useState("");
+  const [cartMessage, setCartMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [addingProductId, setAddingProductId] = useState<Product["id"] | null>(null);
 
   useEffect(() => {
     const state = location.state as ProductListLocationState | null;
@@ -74,6 +83,38 @@ export function ProductListPage() {
       isMounted = false;
     };
   }, [search, stockFilter]);
+
+  async function handleAddToCart(product: Product) {
+    if (!accessToken || !user) {
+      navigate("/login", { state: { from: location } });
+      return;
+    }
+
+    if (user.role !== "buyer") {
+      setCartError("Only buyer accounts can add products to the cart.");
+      return;
+    }
+
+    if (isLocalProductId(product.id)) {
+      setCartError("Demo products can be browsed, but only saved products can be added to the cart.");
+      return;
+    }
+
+    setAddingProductId(product.id);
+    setCartError("");
+    setCartMessage("");
+
+    try {
+      await addCartItem(product.id, 1, accessToken);
+      setCartMessage(`${product.title} added to cart.`);
+    } catch (caughtError) {
+      setCartError(
+        caughtError instanceof Error ? caughtError.message : "Product could not be added.",
+      );
+    } finally {
+      setAddingProductId(null);
+    }
+  }
 
   return (
     <section className="catalog-page">
@@ -127,6 +168,20 @@ export function ProductListPage() {
           Could not load products: {error}
         </p>
       ) : null}
+      {cartError ? (
+        <div className="px-4 py-3">
+          <StatusMessage title="Cart error" message={cartError} tone="error" />
+        </div>
+      ) : null}
+      {cartMessage ? (
+        <div className="px-4 py-3">
+          <StatusMessage
+            title={cartMessage}
+            message="Open the cart when you are ready to checkout."
+            tone="success"
+          />
+        </div>
+      ) : null}
       {isLoading ? (
         <p className="catalog-inline-state">
           Loading products...
@@ -173,7 +228,17 @@ export function ProductListPage() {
               size="icon"
               className="catalog-cart-button"
               aria-label={`Add ${product.title} to cart`}
-              disabled={product.available_quantity <= 0}
+              disabled={
+                product.available_quantity <= 0 ||
+                isLocalProductId(product.id) ||
+                addingProductId === product.id
+              }
+              title={
+                isLocalProductId(product.id)
+                  ? "Only saved products can be added to cart"
+                  : `Add ${product.title} to cart`
+              }
+              onClick={() => handleAddToCart(product)}
             >
               <ShoppingCart aria-hidden="true" size={20} />
             </Button>

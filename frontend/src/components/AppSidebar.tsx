@@ -179,5 +179,9 @@ function isRouteActive(pathname: string, to: string) {
     return pathname === "/seller/products" || pathname.includes("/edit");
   }
 
+  if (to === "/orders") {
+    return pathname === "/orders" || pathname.startsWith("/orders/");
+  }
+
   return pathname === to;
 }
