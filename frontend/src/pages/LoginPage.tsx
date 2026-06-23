@@ -88,7 +88,11 @@ export function LoginPage() {
               onChange={(event) => setPassword(event.target.value)}
             />
           </div>
-          <Button type="submit" disabled={isSubmitting}>
+          <Button
+            type="submit"
+            className="min-h-10 rounded-full text-sm font-extrabold"
+            disabled={isSubmitting}
+          >
             <LogIn aria-hidden="true" />
             {isSubmitting ? "Logging in" : "Login"}
           </Button>

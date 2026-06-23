@@ -22,3 +22,4 @@ build/
 .vite/
 
 .DS_Store
+ui-captures/

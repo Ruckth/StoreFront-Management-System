@@ -103,13 +103,13 @@ export function ProductDetailPage() {
           />
         )}
       </div>
-      <div className="flex flex-col gap-6 p-[clamp(1.5rem,5vw,3rem)]">
+      <div className="flex flex-col gap-3.5 p-[clamp(1rem,2.8vw,1.5rem)]">
         <div className="grid grid-cols-[1fr_auto] items-start gap-4">
           <div>
-            <h1 className="text-[clamp(3.2rem,9vw,5.6rem)] leading-[0.92] font-black uppercase text-black">
+            <h1 className="text-[clamp(2rem,4.2vw,3rem)] leading-none font-black uppercase text-black">
               {product.title}
             </h1>
-            <p className="text-[clamp(1.15rem,2.3vw,1.6rem)] leading-tight font-semibold text-black">
+            <p className="mt-1 text-[clamp(0.95rem,1.2vw,1.05rem)] leading-snug font-semibold text-black">
               StoreFront product
             </p>
           </div>
@@ -117,19 +117,19 @@ export function ProductDetailPage() {
             type="button"
             variant="ghost"
             size="icon"
-            className="size-[3.25rem] bg-transparent text-black"
+            className="size-10 bg-transparent text-black"
             aria-label="Save product"
           >
-            <Heart aria-hidden="true" size={32} />
+            <Heart aria-hidden="true" size={26} />
           </Button>
         </div>
-        <p className="max-w-3xl text-[clamp(1.15rem,2.3vw,1.6rem)] leading-tight font-semibold text-black">
+        <p className="max-w-3xl text-[clamp(0.95rem,1.2vw,1.05rem)] leading-snug font-semibold text-black">
           {product.description}
         </p>
-        <strong className="text-3xl font-bold text-black">
+        <strong className="text-xl font-bold text-black">
           {formatCurrency(product.unit_price)}
         </strong>
-        <div className="flex flex-col gap-3 font-bold text-black">
+        <div className="flex flex-col gap-2 text-sm font-bold text-black">
           <div className="flex justify-between gap-4">
             <span>
               Size: <strong>{selectedSize}</strong>
@@ -144,7 +144,7 @@ export function ProductDetailPage() {
                 key={size}
                 type="button"
                 variant="outline"
-                className={`min-h-11 rounded-md bg-white text-lg font-bold text-black ${
+                className={`min-h-9 rounded-md bg-white text-base font-bold text-black ${
                   selectedSize === size ? "border-3 border-black" : "border-neutral-200"
                 }`}
                 aria-pressed={selectedSize === size}
@@ -155,19 +155,19 @@ export function ProductDetailPage() {
             ))}
           </div>
         </div>
-        <div className="flex flex-col gap-3 font-bold text-black">
+        <div className="flex flex-col gap-2 text-sm font-bold text-black">
           <span>
             Color: <strong>Black</strong>
           </span>
-          <div className="flex h-[5.75rem] w-[4.75rem] items-center justify-center overflow-hidden rounded-md bg-neutral-200">
+          <div className="flex h-18 w-15 items-center justify-center overflow-hidden rounded-md bg-neutral-200">
             {product.image ? (
               <img src={product.image} alt="" className="h-full w-full object-cover" />
             ) : null}
           </div>
         </div>
-        <div className="grid grid-cols-[minmax(12rem,0.32fr)_1fr] gap-4 border-t pt-6 max-[820px]:grid-cols-1">
+        <div className="grid grid-cols-[minmax(9rem,0.32fr)_1fr] gap-3 border-t pt-3.5 max-[820px]:grid-cols-1">
           <div
-            className="grid min-h-16 grid-cols-3 items-center overflow-hidden rounded-full border border-neutral-200 bg-white"
+            className="grid min-h-11 grid-cols-3 items-center overflow-hidden rounded-full border border-neutral-200 bg-white"
             aria-label="Quantity"
           >
             <Button
@@ -180,7 +180,7 @@ export function ProductDetailPage() {
             >
               <Minus aria-hidden="true" size={18} />
             </Button>
-            <span className="text-center text-xl font-extrabold">{quantity}</span>
+            <span className="text-center text-base font-extrabold">{quantity}</span>
             <Button
               type="button"
               variant="ghost"
@@ -198,10 +198,10 @@ export function ProductDetailPage() {
           </div>
           <Button
             type="button"
-            className="min-h-16 rounded-full bg-red-600 text-xl font-black text-white hover:bg-red-700"
+            className="min-h-11 rounded-full text-base font-black"
             disabled={product.available_quantity <= 0}
           >
-            <ShoppingCart aria-hidden="true" size={22} />
+            <ShoppingCart aria-hidden="true" size={20} />
             {product.available_quantity > 0 ? "Add To Cart" : "Out Of Stock"}
           </Button>
         </div>

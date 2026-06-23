@@ -52,7 +52,10 @@ export function RegisterPage() {
           Create account
         </p>
         <CardTitle className="text-3xl">Register</CardTitle>
-        <CardDescription>Choose whether you are buying or selling.</CardDescription>
+        <CardDescription>
+          Pick your starting workspace. Buyer accounts shop products; seller accounts manage
+          listings.
+        </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
         {error ? (
@@ -62,6 +65,35 @@ export function RegisterPage() {
           </Alert>
         ) : null}
         <form className="grid gap-4" onSubmit={handleSubmit}>
+          <fieldset className="grid gap-2 border-0 p-0">
+            <legend className="text-sm font-bold text-muted-foreground">Role</legend>
+            <div className="grid grid-cols-2 gap-1 rounded-full border bg-muted p-1">
+              <button
+                type="button"
+                className={`min-h-10 rounded-full px-4 text-sm font-extrabold transition-colors ${
+                  role === "buyer"
+                    ? "bg-foreground text-background"
+                    : "bg-transparent text-foreground"
+                }`}
+                aria-pressed={role === "buyer"}
+                onClick={() => setRole("buyer")}
+              >
+                Buyer
+              </button>
+              <button
+                type="button"
+                className={`min-h-10 rounded-full px-4 text-sm font-extrabold transition-colors ${
+                  role === "seller"
+                    ? "bg-foreground text-background"
+                    : "bg-transparent text-foreground"
+                }`}
+                aria-pressed={role === "seller"}
+                onClick={() => setRole("seller")}
+              >
+                Seller
+              </button>
+            </div>
+          </fieldset>
           <div className="grid gap-2">
             <Label htmlFor="register-email">Email</Label>
             <Input
@@ -83,36 +115,11 @@ export function RegisterPage() {
               onChange={(event) => setPassword(event.target.value)}
             />
           </div>
-          <fieldset className="grid grid-cols-2 gap-2 border-0 p-0">
-            <legend className="col-span-2 text-sm font-bold text-muted-foreground">
-              Role
-            </legend>
-            <button
-              type="button"
-              className={`min-h-12 rounded-lg border font-extrabold ${
-                role === "buyer"
-                  ? "border-foreground bg-foreground text-background"
-                  : "border-border bg-background text-foreground"
-              }`}
-              aria-pressed={role === "buyer"}
-              onClick={() => setRole("buyer")}
-            >
-              Buyer
-            </button>
-            <button
-              type="button"
-              className={`min-h-12 rounded-lg border font-extrabold ${
-                role === "seller"
-                  ? "border-foreground bg-foreground text-background"
-                  : "border-border bg-background text-foreground"
-              }`}
-              aria-pressed={role === "seller"}
-              onClick={() => setRole("seller")}
-            >
-              Seller
-            </button>
-          </fieldset>
-          <Button type="submit" disabled={isSubmitting}>
+          <Button
+            type="submit"
+            className="min-h-10 rounded-full text-sm font-extrabold"
+            disabled={isSubmitting}
+          >
             <UserPlus aria-hidden="true" />
             {isSubmitting ? "Creating account" : "Register"}
           </Button>

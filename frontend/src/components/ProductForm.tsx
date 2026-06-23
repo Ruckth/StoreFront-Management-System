@@ -1,5 +1,21 @@
-import { ArrowLeft, ArrowRight, ImagePlus, Save } from "lucide-react";
-import { type FormEvent, useState } from "react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  ImageIcon,
+  ImagePlus,
+  Save,
+  Trash2,
+  Upload,
+  X,
+  ZoomIn,
+} from "lucide-react";
+import { Dialog as DialogPrimitive } from "radix-ui";
+import { type FormEvent, type KeyboardEvent, useState } from "react";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "./reui/alert";
 import {
   Stepper,
   StepperIndicator,
@@ -151,6 +167,7 @@ const PRODUCT_STEPS = [
 
 export function ProductStepForm({ isSubmitting, onSubmit }: ProductStepFormProps) {
   const [step, setStep] = useState(0);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [values, setValues] = useState<ProductFormValues>({
     title: "",
     description: "",
@@ -173,9 +190,11 @@ export function ProductStepForm({ isSubmitting, onSubmit }: ProductStepFormProps
     },
   });
   const previewUrl = files[0]?.preview ?? "";
-  const selectedFile = files[0]?.file;
+  const selectedUpload = files[0];
+  const selectedFile = selectedUpload?.file;
   const isReviewStep = step === PRODUCT_STEPS.length - 1;
   const canMoveNext = isCurrentStepValid(values, step);
+  const isFullscreenPreviewOpen = Boolean(previewUrl) && isPreviewOpen;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -188,6 +207,26 @@ export function ProductStepForm({ isSubmitting, onSubmit }: ProductStepFormProps
     }
 
     await onSubmit(values);
+  }
+
+  function handleFieldKeyDown(
+    event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) {
+    if (event.key !== "Enter" || event.nativeEvent.isComposing || isReviewStep) {
+      return;
+    }
+
+    event.preventDefault();
+    if (canMoveNext) {
+      setStep((current) => Math.min(PRODUCT_STEPS.length - 1, current + 1));
+    }
+  }
+
+  function removeSelectedImage() {
+    if (selectedUpload) {
+      setIsPreviewOpen(false);
+      upload.removeFile(selectedUpload.id);
+    }
   }
 
   return (
@@ -204,7 +243,7 @@ export function ProductStepForm({ isSubmitting, onSubmit }: ProductStepFormProps
           }
         }}
       >
-        <StepperNav className="grid grid-cols-6 gap-1 max-[820px]:grid-cols-3">
+        <StepperNav className="grid grid-cols-6 gap-1">
           {PRODUCT_STEPS.map((label, index) => (
             <StepperItem
               key={label}
@@ -213,11 +252,11 @@ export function ProductStepForm({ isSubmitting, onSubmit }: ProductStepFormProps
               disabled={index > step}
               className="min-w-0 justify-stretch"
             >
-              <StepperTrigger className="grid w-full grid-cols-[auto_1fr] items-center gap-2 rounded-none border-0 border-b-[3px] border-b-neutral-200 bg-transparent px-0 py-2 text-left text-neutral-600 data-[state=active]:border-b-black data-[state=active]:text-black data-[state=completed]:border-b-black data-[state=completed]:text-black">
+              <StepperTrigger className="grid w-full grid-cols-[auto_1fr] items-center gap-2 rounded-none border-0 border-b-[3px] border-b-neutral-200 bg-transparent px-0 py-2 text-left text-neutral-600 data-[state=active]:border-b-black data-[state=active]:text-black data-[state=completed]:border-b-black data-[state=completed]:text-black max-[820px]:flex max-[820px]:justify-center max-[820px]:px-0.5">
                 <StepperIndicator className="size-6 text-xs font-black">
                   {index + 1}
                 </StepperIndicator>
-                <StepperTitle className="truncate text-xs font-black uppercase">
+                <StepperTitle className="truncate text-xs font-black uppercase max-[820px]:sr-only">
                   {label}
                 </StepperTitle>
               </StepperTrigger>
@@ -230,44 +269,132 @@ export function ProductStepForm({ isSubmitting, onSubmit }: ProductStepFormProps
       </Stepper>
       <p className="text-xs font-extrabold uppercase text-[var(--app-accent)]">
         Step {step + 1} of {PRODUCT_STEPS.length}
+        <span className="hidden max-[820px]:inline">
+          {" "}
+          · {PRODUCT_STEPS[step]}
+        </span>
       </p>
       {step === 0 ? (
         <div
           className={cn(
-            "flex min-h-96 flex-col items-center justify-center gap-3 border border-dashed bg-neutral-100 p-4 text-center max-[820px]:min-h-72",
-            isDragging && "border-black bg-neutral-200",
+            "relative grid min-h-[22rem] gap-4 rounded-lg border border-dashed p-5 transition-colors max-[820px]:min-h-[18rem] max-[820px]:p-4",
+            previewUrl ? "bg-white" : "place-items-center bg-neutral-100 text-center",
+            isDragging
+              ? "border-primary bg-primary/5"
+              : "border-muted-foreground/25 hover:border-muted-foreground/50",
           )}
           onDragEnter={upload.handleDragEnter}
           onDragLeave={upload.handleDragLeave}
           onDragOver={upload.handleDragOver}
           onDrop={upload.handleDrop}
         >
-          <span className="text-sm font-black uppercase text-black">
-            Upload product image
-          </span>
-          <input {...upload.getInputProps({ accept: "image/*" })} className="sr-only" />
-          {previewUrl ? (
-            <img
-              src={previewUrl}
-              alt="Product preview"
-              className="aspect-square w-[min(24rem,100%)] rounded-md object-cover"
-            />
-          ) : null}
-          <Button type="button" variant="outline" onClick={upload.openFileDialog}>
-            <ImagePlus aria-hidden="true" />
-            {previewUrl ? "Change image" : "Browse image"}
-          </Button>
-          {selectedFile ? (
-            <small className="font-bold text-neutral-600">
-              {selectedFile.name} · {formatBytes(selectedFile.size)}
-            </small>
+          <input
+            {...upload.getInputProps({ accept: "image/*", multiple: false })}
+            className="sr-only"
+          />
+          {previewUrl && selectedUpload ? (
+            <div className="grid grid-cols-[minmax(10rem,0.75fr)_1fr] items-center gap-4 max-[820px]:grid-cols-1">
+              <div className="group relative aspect-square overflow-hidden rounded-lg border bg-muted">
+                <img
+                  src={previewUrl}
+                  alt="Product preview"
+                  className="h-full w-full object-cover"
+                />
+                <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/45 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 max-[820px]:bg-transparent max-[820px]:opacity-100">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="icon"
+                    className="size-8 rounded-full shadow-md ring-1 ring-white/70"
+                    onClick={() => setIsPreviewOpen(true)}
+                    aria-label="Open image preview"
+                  >
+                    <ZoomIn aria-hidden="true" size={16} />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="icon"
+                    className="size-8 rounded-full shadow-md ring-1 ring-white/70"
+                    onClick={removeSelectedImage}
+                    aria-label="Remove product image"
+                  >
+                    <X aria-hidden="true" size={16} />
+                  </Button>
+                </div>
+              </div>
+              <div className="grid justify-items-start gap-3 text-left">
+                <span className="inline-flex size-11 items-center justify-center rounded-full bg-muted">
+                  <ImageIcon aria-hidden="true" className="size-5 text-muted-foreground" />
+                </span>
+                <div className="grid gap-1">
+                  <span className="text-sm font-black uppercase text-black">
+                    Product image selected
+                  </span>
+                  {selectedFile ? (
+                    <small className="font-bold text-neutral-600">
+                      {selectedFile.name} · {formatBytes(selectedFile.size)}
+                    </small>
+                  ) : null}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" variant="outline" onClick={upload.openFileDialog}>
+                    <Upload aria-hidden="true" size={16} />
+                    Change image
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={removeSelectedImage}
+                  >
+                    <Trash2 aria-hidden="true" size={16} />
+                    Remove
+                  </Button>
+                </div>
+              </div>
+            </div>
           ) : (
-            <small className="font-bold text-neutral-600">
-              JPEG, PNG, GIF, or WebP up to 10 MB.
-            </small>
+            <div className="flex max-w-sm flex-col items-center gap-4">
+              <span
+                className={cn(
+                  "inline-flex size-16 items-center justify-center rounded-full",
+                  isDragging ? "bg-primary/10" : "bg-muted",
+                )}
+              >
+                <ImageIcon
+                  aria-hidden="true"
+                  className={cn(
+                    "size-6",
+                    isDragging ? "text-primary" : "text-muted-foreground",
+                  )}
+                />
+              </span>
+              <div className="grid gap-1">
+                <span className="text-sm font-black uppercase text-black">
+                  Upload product image
+                </span>
+                <small className="font-bold text-neutral-600">
+                  Drag and drop an image here or browse your files.
+                </small>
+                <small className="text-xs font-bold text-neutral-500">
+                  JPEG, PNG, GIF, or WebP up to 10 MB.
+                </small>
+              </div>
+              <Button type="button" onClick={upload.openFileDialog}>
+                <Upload aria-hidden="true" size={16} />
+                Browse image
+              </Button>
+            </div>
           )}
           {errors.length > 0 ? (
-            <small className="font-bold text-destructive">{errors[0]}</small>
+            <Alert variant="destructive" className="mt-1">
+              <AlertTitle>Image upload error</AlertTitle>
+              <AlertDescription>
+                {errors.map((error) => (
+                  <p key={error}>{error}</p>
+                ))}
+              </AlertDescription>
+            </Alert>
           ) : null}
         </div>
       ) : null}
@@ -281,6 +408,7 @@ export function ProductStepForm({ isSubmitting, onSubmit }: ProductStepFormProps
             maxLength={255}
             placeholder="Water bottle"
             value={values.title}
+            onKeyDown={handleFieldKeyDown}
             onChange={(event) =>
               setValues((current) => ({ ...current, title: event.target.value }))
             }
@@ -291,12 +419,13 @@ export function ProductStepForm({ isSubmitting, onSubmit }: ProductStepFormProps
         <label className="flex min-h-96 flex-col justify-center gap-3 max-[820px]:min-h-72">
           <span className="text-sm font-black uppercase text-black">Description</span>
           <Textarea
-            className="min-h-40 resize-y rounded-none border-0 border-b-2 border-b-black bg-transparent px-0 py-3 text-[clamp(1.2rem,3vw,2.2rem)] leading-tight font-black shadow-none focus-visible:ring-0"
+            className="min-h-40 resize-y rounded-none border-0 border-b-2 border-b-black bg-transparent px-0 py-3 text-[clamp(1.2rem,3vw,2.2rem)] leading-tight font-normal shadow-none focus-visible:ring-0"
             required
             autoFocus
             rows={6}
             placeholder="Describe the item, condition, and fit."
             value={values.description}
+            onKeyDown={handleFieldKeyDown}
             onChange={(event) =>
               setValues((current) => ({
                 ...current,
@@ -318,6 +447,7 @@ export function ProductStepForm({ isSubmitting, onSubmit }: ProductStepFormProps
             type="number"
             placeholder="38.00"
             value={values.unit_price}
+            onKeyDown={handleFieldKeyDown}
             onChange={(event) =>
               setValues((current) => ({
                 ...current,
@@ -339,6 +469,7 @@ export function ProductStepForm({ isSubmitting, onSubmit }: ProductStepFormProps
             type="number"
             placeholder="12"
             value={values.available_quantity}
+            onKeyDown={handleFieldKeyDown}
             onChange={(event) =>
               setValues((current) => ({
                 ...current,
@@ -400,6 +531,37 @@ export function ProductStepForm({ isSubmitting, onSubmit }: ProductStepFormProps
           )}
         </Button>
       </div>
+      <DialogPrimitive.Root
+        open={isFullscreenPreviewOpen}
+        onOpenChange={setIsPreviewOpen}
+      >
+        <DialogPrimitive.Portal>
+          <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/90 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
+          <DialogPrimitive.Content className="fixed inset-0 z-50 flex items-center justify-center p-4 outline-none">
+            <DialogPrimitive.Title className="sr-only">
+              Product image preview
+            </DialogPrimitive.Title>
+            {previewUrl ? (
+              <img
+                src={previewUrl}
+                alt="Product preview fullscreen"
+                className="max-h-[calc(100vh-2rem)] max-w-[calc(100vw-2rem)] rounded-lg object-contain shadow-2xl"
+              />
+            ) : null}
+            <DialogPrimitive.Close asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute top-3 right-3 size-10 rounded-full text-white hover:bg-white/10 hover:text-white"
+                aria-label="Close image preview"
+              >
+                <X aria-hidden="true" size={28} />
+              </Button>
+            </DialogPrimitive.Close>
+          </DialogPrimitive.Content>
+        </DialogPrimitive.Portal>
+      </DialogPrimitive.Root>
     </form>
   );
 }

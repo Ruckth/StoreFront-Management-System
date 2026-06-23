@@ -5,8 +5,7 @@ import { ProductForm, ProductStepForm } from "../components/ProductForm";
 import { StatusMessage } from "../components/StatusMessage";
 import { Button } from "../components/ui/button";
 import { useAuth } from "../hooks/useAuth";
-import { getProduct, updateProduct } from "../lib/api";
-import { createLocalProduct } from "../lib/localProducts";
+import { createProduct, getProduct, updateProduct } from "../lib/api";
 import type { Product, ProductFormValues } from "../types";
 
 type ProductFormPageProps = {
@@ -68,7 +67,7 @@ export function ProductFormPage({ mode }: ProductFormPageProps) {
 
   async function handleSubmit(values: ProductFormValues) {
     if (mode === "create") {
-      if (!user) {
+      if (!accessToken) {
         setError("You need to login again before saving products.");
         return;
       }
@@ -77,7 +76,7 @@ export function ProductFormPage({ mode }: ProductFormPageProps) {
       setError("");
 
       try {
-        await createLocalProduct(values, user);
+        await createProduct(values, accessToken);
         navigate("/seller/products");
       } catch (caughtError) {
         setError(

@@ -1,26 +1,33 @@
-import { Search, ShoppingCart, SlidersHorizontal } from "lucide-react";
-import { type FormEvent, useEffect, useState } from "react";
+import { Search, ShoppingCart } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Checkbox } from "../components/ui/checkbox";
 import { Input } from "../components/ui/input";
 import { useAuth } from "../hooks/useAuth";
 import { listProducts } from "../lib/api";
-import { listLocalProducts, mergeProducts } from "../lib/localProducts";
+import { listLocalProducts, mergeProducts, seedDemoProducts } from "../lib/localProducts";
 import type { Product } from "../types";
 
 type ProductListLocationState = {
   logout?: boolean;
 };
 
+type StockFilter = "all" | "in-stock" | "sold-out";
+
+const STOCK_FILTERS: Array<{ label: string; value: StockFilter }> = [
+  { label: "All", value: "all" },
+  { label: "In stock", value: "in-stock" },
+  { label: "Sold out", value: "sold-out" },
+];
+
 export function ProductListPage() {
   const { logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
-  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const [inStockOnly, setInStockOnly] = useState(false);
+  const [stockFilter, setStockFilter] = useState<StockFilter>("in-stock");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
@@ -41,13 +48,16 @@ export function ProductListPage() {
       try {
         const response = await listProducts();
         if (isMounted) {
-          setProducts(filterProducts(mergeProducts(response), search, inStockOnly));
+          setProducts(filterProducts(mergeProducts(response), search, stockFilter));
         }
       } catch (caughtError) {
         if (isMounted) {
-          const localProducts = filterProducts(listLocalProducts(), search, inStockOnly);
+          const storedProducts = listLocalProducts();
+          const fallbackProducts =
+            storedProducts.length > 0 ? storedProducts : seedDemoProducts();
+          const localProducts = filterProducts(fallbackProducts, search, stockFilter);
           setProducts(localProducts);
-          setError(localProducts.length > 0 ? "" : caughtError instanceof Error
+          setError(fallbackProducts.length > 0 ? "" : caughtError instanceof Error
             ? caughtError.message
             : "Products could not be loaded.");
         }
@@ -63,87 +73,96 @@ export function ProductListPage() {
     return () => {
       isMounted = false;
     };
-  }, [inStockOnly, search]);
-
-  function handleSearch(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSearch(searchInput.trim());
-  }
+  }, [search, stockFilter]);
 
   return (
-    <section className="flex flex-col gap-0 bg-white">
+    <section className="catalog-page">
       <h1 className="sr-only">Shop All</h1>
-      <form
-        className="sticky top-[calc(5.4rem+1.65rem)] z-10 grid grid-cols-[minmax(12rem,1fr)_auto_auto] gap-0 border-b border-white bg-white/[0.97] p-0 backdrop-blur-xl max-[820px]:static max-[820px]:grid-cols-1"
-        onSubmit={handleSearch}
-      >
-        <label className="inline-flex min-h-14 items-center gap-2 border-0 border-r border-r-neutral-200 bg-white px-4">
-          <Search aria-hidden="true" size={18} />
+
+      <div className="catalog-filter-row">
+        <label className="catalog-search-field">
+          <Search aria-hidden="true" size={15} />
           <Input
-            className="border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+            className="h-8 border-0 bg-transparent px-0 text-sm shadow-none focus-visible:ring-0"
             placeholder="Search products"
-            value={searchInput}
-            onChange={(event) => setSearchInput(event.target.value)}
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
           />
         </label>
-        <label className="inline-flex min-h-14 items-center gap-2 border-0 border-r border-r-neutral-200 bg-white px-4 font-bold text-muted-foreground">
-          <Checkbox
-            checked={inStockOnly}
-            onCheckedChange={(checked) => setInStockOnly(checked === true)}
-          />
-          <SlidersHorizontal aria-hidden="true" size={18} />
-          In stock
-        </label>
-        <Button
-          type="submit"
-          variant="outline"
-          className="min-h-14 rounded-none border-0 border-r border-r-neutral-200 bg-white px-5 font-bold shadow-none"
-        >
-          <Search aria-hidden="true" size={18} />
-          Search
-        </Button>
-      </form>
+        <div className="catalog-mobile-stock-control" aria-label="Mobile sold out filter">
+          <div className="catalog-mobile-stock-check">
+            <Checkbox
+              id="catalog-mobile-sold-out"
+              className="catalog-mobile-stock-checkbox"
+              checked={stockFilter === "all"}
+              onCheckedChange={(checked) => {
+                setStockFilter(checked === true ? "all" : "in-stock");
+              }}
+            />
+            <label htmlFor="catalog-mobile-sold-out">
+              Show sold out
+            </label>
+          </div>
+        </div>
+        <div className="catalog-stock-chips" aria-label="Stock filter">
+          {STOCK_FILTERS.map((filter) => (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="catalog-stock-chip"
+              data-active={stockFilter === filter.value}
+              aria-pressed={stockFilter === filter.value}
+              key={filter.value}
+              onClick={() => setStockFilter(filter.value)}
+            >
+              {filter.label}
+            </Button>
+          ))}
+        </div>
+      </div>
+
       {error ? (
-        <p className="m-0 bg-white px-4 py-3 text-sm text-neutral-600">
+        <p className="catalog-inline-state">
           Could not load products: {error}
         </p>
       ) : null}
       {isLoading ? (
-        <p className="m-0 bg-white px-4 py-3 text-sm text-neutral-600">
+        <p className="catalog-inline-state">
           Loading products...
         </p>
       ) : null}
       {!isLoading && !error && products.length === 0 ? (
-        <p className="m-0 bg-white px-4 py-3 text-sm text-neutral-600">
+        <p className="catalog-inline-state">
           No products found. Try a different search or filter.
         </p>
       ) : null}
-      <div className="grid grid-cols-4 gap-[0.2rem] bg-white max-[820px]:grid-cols-2">
+      <div className="catalog-grid">
         {products.map((product) => (
-          <article className="relative min-w-0 rounded-none bg-neutral-200 shadow-none" key={product.id}>
-            <Link to={`/products/${product.id}`} className="flex min-h-full flex-col">
+          <article className="catalog-card" key={product.id}>
+            <Link to={`/products/${product.id}`} className="catalog-card-link">
               {product.image ? (
                 <img
                   src={product.image}
                   alt={product.title}
-                  className="aspect-[1/1.25] w-full bg-neutral-200 object-cover"
+                  className="catalog-card-image"
                 />
               ) : (
                 <div
-                  className="aspect-[1/1.25] w-full bg-[linear-gradient(135deg,rgba(255,255,255,0.72),rgba(220,220,220,0.75)),#eeeeee]"
+                  className="catalog-card-image catalog-card-placeholder"
                   aria-hidden="true"
                 />
               )}
-              <div className="grid min-h-[6.25rem] grid-cols-[1fr_auto] items-start gap-3 bg-neutral-200 px-4 py-3 pb-5 max-[820px]:min-h-[7.5rem] max-[820px]:grid-cols-1">
+              <div className="catalog-card-body">
                 <div>
-                  <span className="mb-1 block text-xs font-bold text-black">
+                  <span>
                     {product.available_quantity > 0 ? "Product" : "Sold out"}
                   </span>
-                  <h2 className="text-base font-black uppercase text-black md:text-lg">
+                  <h2>
                     {product.title}
                   </h2>
                 </div>
-                <strong className="whitespace-nowrap text-base font-bold text-neutral-600">
+                <strong>
                   {formatCurrency(product.unit_price)}
                 </strong>
               </div>
@@ -152,7 +171,7 @@ export function ProductListPage() {
               type="button"
               variant="ghost"
               size="icon"
-              className="absolute right-3 bottom-4 size-8 rounded-full bg-white text-black shadow-[0_8px_22px_rgba(17,17,17,0.1)] hover:bg-red-600 hover:text-white disabled:bg-white/65 disabled:text-neutral-500 max-[820px]:right-2 max-[820px]:bottom-2"
+              className="catalog-cart-button"
               aria-label={`Add ${product.title} to cart`}
               disabled={product.available_quantity <= 0}
             >
@@ -172,7 +191,11 @@ function formatCurrency(value: string) {
   });
 }
 
-function filterProducts(products: Product[], search: string, inStockOnly: boolean) {
+function filterProducts(
+  products: Product[],
+  search: string,
+  stockFilter: StockFilter,
+) {
   const normalizedSearch = search.trim().toLowerCase();
 
   return products.filter((product) => {
@@ -180,7 +203,10 @@ function filterProducts(products: Product[], search: string, inStockOnly: boolea
       !normalizedSearch ||
       product.title.toLowerCase().includes(normalizedSearch) ||
       product.description.toLowerCase().includes(normalizedSearch);
-    const matchesStock = !inStockOnly || product.available_quantity > 0;
+    const matchesStock =
+      stockFilter === "all" ||
+      (stockFilter === "in-stock" && product.available_quantity > 0) ||
+      (stockFilter === "sold-out" && product.available_quantity <= 0);
 
     return matchesSearch && matchesStock;
   });
