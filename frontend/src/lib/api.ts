@@ -1,6 +1,10 @@
 import type {
   ApiErrorPayload,
+  Cart,
+  CartItem,
   LoginResponse,
+  OrderDetail,
+  OrderSummary,
   Product,
   ProductFormValues,
   Role,
@@ -138,6 +142,53 @@ export function deleteProduct(id: string | number, token: string) {
     method: "DELETE",
     token,
   });
+}
+
+export function getCart(token: string) {
+  return request<Cart>("/cart/", { token });
+}
+
+export function addCartItem(
+  productId: string | number,
+  quantity: number,
+  token: string,
+) {
+  return request<CartItem>("/cart/items/", {
+    method: "POST",
+    body: JSON.stringify({ product_id: productId, quantity }),
+    token,
+  });
+}
+
+export function updateCartItem(id: number, quantity: number, token: string) {
+  return request<CartItem>(`/cart/items/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify({ quantity }),
+    token,
+  });
+}
+
+export function removeCartItem(id: number, token: string) {
+  return request<void>(`/cart/items/${id}/`, {
+    method: "DELETE",
+    token,
+  });
+}
+
+export function checkoutCart(token: string) {
+  return request<OrderDetail>("/cart/checkout/", {
+    method: "POST",
+    body: JSON.stringify({}),
+    token,
+  });
+}
+
+export function listOrders(token: string) {
+  return request<OrderSummary[]>("/orders/", { token });
+}
+
+export function getOrder(id: string | number, token: string) {
+  return request<OrderDetail>(`/orders/${id}/`, { token });
 }
 
 function productFormData(values: ProductFormValues, requireImage: boolean) {

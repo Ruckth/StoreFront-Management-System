@@ -4,7 +4,9 @@ import {
   LogOut,
   Package,
   Plus,
+  ReceiptText,
   ShoppingBag,
+  ShoppingCart,
   UserPlus,
   UserRound,
 } from "lucide-react";
@@ -159,6 +161,13 @@ function getNavItems(role?: string): AppNavItem[] {
     );
   }
 
+  if (role === "buyer") {
+    items.push(
+      { label: "Cart", to: "/cart", icon: ShoppingCart },
+      { label: "Orders", to: "/orders", icon: ReceiptText },
+    );
+  }
+
   return items;
 }
 
@@ -190,6 +199,28 @@ function getBreadcrumbs(pathname: string) {
       { label: "Home", to: "/" },
       { label: "Marketplace", to: "/products" },
       { label: "Product", to: pathname },
+    ];
+  }
+
+  if (pathname === "/cart") {
+    return [
+      { label: "Home", to: "/" },
+      { label: "Cart", to: "/cart" },
+    ];
+  }
+
+  if (pathname === "/orders") {
+    return [
+      { label: "Home", to: "/" },
+      { label: "Orders", to: "/orders" },
+    ];
+  }
+
+  if (pathname.startsWith("/orders/")) {
+    return [
+      { label: "Home", to: "/" },
+      { label: "Orders", to: "/orders" },
+      { label: "Order", to: pathname },
     ];
   }
 

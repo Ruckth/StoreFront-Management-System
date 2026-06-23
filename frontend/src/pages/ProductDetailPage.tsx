@@ -1,10 +1,10 @@
 import { Edit3, Heart, Minus, Plus, ShoppingCart } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { StatusMessage } from "../components/StatusMessage";
 import { Button } from "../components/ui/button";
 import { useAuth } from "../hooks/useAuth";
-import { getProduct } from "../lib/api";
+import { addCartItem, getProduct } from "../lib/api";
 import { getLocalProduct, isLocalProductId } from "../lib/localProducts";
 import type { Product } from "../types";
 
@@ -12,12 +12,17 @@ const PRODUCT_SIZES = ["S", "M", "L", "XL", "2XL"];
 
 export function ProductDetailPage() {
   const { id } = useParams();
-  const { user } = useAuth();
+  const { accessToken, user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [product, setProduct] = useState<Product | null>(null);
   const [selectedSize, setSelectedSize] = useState(PRODUCT_SIZES[0]);
   const [quantity, setQuantity] = useState(1);
   const [error, setError] = useState("");
+  const [cartError, setCartError] = useState("");
+  const [cartMessage, setCartMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -86,6 +91,45 @@ export function ProductDetailPage() {
   }
 
   const canEdit = user?.role === "seller" && user.id === product.seller.id;
+  const isLocalProduct = isLocalProductId(product.id);
+
+  async function handleAddToCart() {
+    if (!product) {
+      return;
+    }
+
+    if (!accessToken || !user) {
+      navigate("/login", { state: { from: location } });
+      return;
+    }
+
+    if (user.role !== "buyer") {
+      setCartError("Only buyer accounts can add products to the cart.");
+      return;
+    }
+
+    if (isLocalProduct) {
+      setCartError("Demo products can be browsed, but only saved products can be added to the cart.");
+      return;
+    }
+
+    const productId = product.id;
+    const productTitle = product.title;
+    setIsAddingToCart(true);
+    setCartError("");
+    setCartMessage("");
+
+    try {
+      await addCartItem(productId, quantity, accessToken);
+      setCartMessage(`${quantity} ${productTitle} added to cart.`);
+    } catch (caughtError) {
+      setCartError(
+        caughtError instanceof Error ? caughtError.message : "Product could not be added.",
+      );
+    } finally {
+      setIsAddingToCart(false);
+    }
+  }
 
   return (
     <section className="mx-auto w-[min(860px,100%)] bg-white">
@@ -126,6 +170,16 @@ export function ProductDetailPage() {
         <p className="max-w-3xl text-[clamp(0.95rem,1.2vw,1.05rem)] leading-snug font-semibold text-black">
           {product.description}
         </p>
+        {cartError ? (
+          <StatusMessage title="Cart error" message={cartError} tone="error" />
+        ) : null}
+        {cartMessage ? (
+          <StatusMessage
+            title={cartMessage}
+            message="Open the cart when you are ready to checkout."
+            tone="success"
+          />
+        ) : null}
         <strong className="text-xl font-bold text-black">
           {formatCurrency(product.unit_price)}
         </strong>
@@ -199,13 +253,27 @@ export function ProductDetailPage() {
           <Button
             type="button"
             className="min-h-11 rounded-full text-base font-black"
-            disabled={product.available_quantity <= 0}
+            disabled={
+              product.available_quantity <= 0 ||
+              isLocalProduct ||
+              isAddingToCart
+            }
+            onClick={handleAddToCart}
           >
             <ShoppingCart aria-hidden="true" size={20} />
-            {product.available_quantity > 0 ? "Add To Cart" : "Out Of Stock"}
+            {isAddingToCart
+              ? "Adding"
+              : product.available_quantity > 0
+                ? "Add To Cart"
+                : "Out Of Stock"}
           </Button>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          {cartMessage ? (
+            <Button asChild variant="outline">
+              <Link to="/cart">View cart</Link>
+            </Button>
+          ) : null}
           {canEdit ? (
             <Button asChild variant="outline">
               <Link to={`/seller/products/${product.id}/edit`}>
