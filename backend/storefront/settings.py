@@ -35,7 +35,19 @@ def append_unique(values, *items):
 def normalize_origin(value):
     if not value:
         return None
-    return value.rstrip("/")
+    value = value.strip().rstrip("/")
+    parsed = urlparse(value)
+    if parsed.scheme in {"http", "https"} and parsed.netloc:
+        return f"{parsed.scheme}://{parsed.netloc}"
+    return value
+
+
+def env_origins(name, default):
+    return [
+        origin
+        for origin in (normalize_origin(item) for item in env_list(name, default))
+        if origin
+    ]
 
 
 def origin_from_domain(domain):
@@ -195,7 +207,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "users.User"
 
 CORS_ALLOWED_ORIGINS = append_unique(
-    env_list(
+    env_origins(
         "CORS_ALLOWED_ORIGINS",
         ["http://localhost:5173", "http://127.0.0.1:5173"],
     ),
@@ -207,7 +219,7 @@ CORS_ALLOWED_ORIGINS = append_unique(
 CORS_ALLOW_CREDENTIALS = True
 
 CSRF_TRUSTED_ORIGINS = append_unique(
-    env_list("CSRF_TRUSTED_ORIGINS", []),
+    env_origins("CSRF_TRUSTED_ORIGINS", []),
     origin_from_domain(os.getenv("RAILWAY_PUBLIC_DOMAIN")),
     *[
         normalize_origin(origin)
