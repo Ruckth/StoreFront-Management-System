@@ -82,6 +82,7 @@ if not DEBUG and SECRET_KEY == "dev-only-storefront-secret-key-change-before-pro
 
 ALLOWED_HOSTS = append_unique(
     env_list("ALLOWED_HOSTS", ["localhost", "127.0.0.1", "[::1]"]),
+    "healthcheck.railway.app",
     os.getenv("RAILWAY_PUBLIC_DOMAIN"),
     os.getenv("RAILWAY_PRIVATE_DOMAIN"),
 )
