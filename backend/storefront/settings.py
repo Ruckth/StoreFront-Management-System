@@ -1,9 +1,13 @@
 from datetime import timedelta
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 import os
+
+from django.core.exceptions import ImproperlyConfigured
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+IS_RAILWAY = bool(os.getenv("RAILWAY_ENVIRONMENT_NAME"))
 
 
 def env_bool(name, default=False):
@@ -20,9 +24,67 @@ def env_list(name, default):
     return [item.strip() for item in value.split(",") if item.strip()]
 
 
+def append_unique(values, *items):
+    result = list(values)
+    for item in items:
+        if item and item not in result:
+            result.append(item)
+    return result
+
+
+def normalize_origin(value):
+    if not value:
+        return None
+    return value.rstrip("/")
+
+
+def origin_from_domain(domain):
+    if not domain:
+        return None
+    if domain.startswith(("http://", "https://")):
+        return normalize_origin(domain)
+    return f"https://{domain}"
+
+
+def database_from_url(value):
+    parsed = urlparse(value)
+    if parsed.scheme not in {"postgres", "postgresql"}:
+        raise ImproperlyConfigured("DATABASE_URL must use postgres:// or postgresql://.")
+
+    return {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": unquote(parsed.path.lstrip("/")),
+        "USER": unquote(parsed.username or ""),
+        "PASSWORD": unquote(parsed.password or ""),
+        "HOST": parsed.hostname or "",
+        "PORT": str(parsed.port or ""),
+    }
+
+
+def railway_postgres_config():
+    if not all(os.getenv(name) for name in ("PGDATABASE", "PGUSER", "PGHOST")):
+        return None
+
+    return {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv("PGDATABASE"),
+        "USER": os.getenv("PGUSER"),
+        "PASSWORD": os.getenv("PGPASSWORD", ""),
+        "HOST": os.getenv("PGHOST"),
+        "PORT": os.getenv("PGPORT", "5432"),
+    }
+
+
+DEBUG = env_bool("DEBUG", not IS_RAILWAY)
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-only-storefront-secret-key-change-before-production")
-DEBUG = env_bool("DEBUG", True)
-ALLOWED_HOSTS = env_list("ALLOWED_HOSTS", ["localhost", "127.0.0.1", "[::1]"])
+if not DEBUG and SECRET_KEY == "dev-only-storefront-secret-key-change-before-production":
+    raise ImproperlyConfigured("SECRET_KEY must be set when DEBUG is disabled.")
+
+ALLOWED_HOSTS = append_unique(
+    env_list("ALLOWED_HOSTS", ["localhost", "127.0.0.1", "[::1]"]),
+    os.getenv("RAILWAY_PUBLIC_DOMAIN"),
+    os.getenv("RAILWAY_PRIVATE_DOMAIN"),
+)
 
 
 INSTALLED_APPS = [
@@ -50,6 +112,13 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
+if not DEBUG or IS_RAILWAY:
+    security_middleware_index = MIDDLEWARE.index("django.middleware.security.SecurityMiddleware")
+    MIDDLEWARE.insert(
+        security_middleware_index + 1,
+        "whitenoise.middleware.WhiteNoiseMiddleware",
+    )
+
 ROOT_URLCONF = "storefront.urls"
 
 TEMPLATES = [
@@ -70,12 +139,19 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "storefront.wsgi.application"
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+DATABASE_URL = os.getenv("DATABASE_URL")
+POSTGRES_CONFIG = railway_postgres_config()
+if DATABASE_URL:
+    DATABASES = {"default": database_from_url(DATABASE_URL)}
+elif POSTGRES_CONFIG:
+    DATABASES = {"default": POSTGRES_CONFIG}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
     }
-}
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -97,18 +173,55 @@ TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+RAILWAY_VOLUME_MOUNT_PATH = os.getenv("RAILWAY_VOLUME_MOUNT_PATH")
+MEDIA_ROOT = Path(
+    os.getenv(
+        "MEDIA_ROOT",
+        str(
+            Path(RAILWAY_VOLUME_MOUNT_PATH) / "media"
+            if RAILWAY_VOLUME_MOUNT_PATH
+            else BASE_DIR / "media"
+        ),
+    )
+)
+SERVE_MEDIA_FILES = env_bool("SERVE_MEDIA_FILES", DEBUG or bool(RAILWAY_VOLUME_MOUNT_PATH))
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "users.User"
 
-CORS_ALLOWED_ORIGINS = env_list(
-    "CORS_ALLOWED_ORIGINS",
-    ["http://localhost:5173", "http://127.0.0.1:5173"],
+CORS_ALLOWED_ORIGINS = append_unique(
+    env_list(
+        "CORS_ALLOWED_ORIGINS",
+        ["http://localhost:5173", "http://127.0.0.1:5173"],
+    ),
+    *[
+        normalize_origin(origin)
+        for origin in env_list("FRONTEND_URL", [])
+    ],
 )
 CORS_ALLOW_CREDENTIALS = True
+
+CSRF_TRUSTED_ORIGINS = append_unique(
+    env_list("CSRF_TRUSTED_ORIGINS", []),
+    origin_from_domain(os.getenv("RAILWAY_PUBLIC_DOMAIN")),
+    *[
+        normalize_origin(origin)
+        for origin in env_list("FRONTEND_URL", [])
+    ],
+)
+
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", not DEBUG)
+SECURE_REDIRECT_EXEMPT = [r"^health/$"]
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+SECURE_HSTS_SECONDS = int(os.getenv("SECURE_HSTS_SECONDS", "0" if DEBUG else "60"))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", False)
+SECURE_HSTS_PRELOAD = env_bool("SECURE_HSTS_PRELOAD", False)
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (

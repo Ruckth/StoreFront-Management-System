@@ -7,10 +7,12 @@ venv/
 env/
 .env
 .env.*
+!.env.example
 
 *.sqlite3
 db.sqlite3
 media/
+staticfiles/
 
 .pytest_cache/
 .coverage
