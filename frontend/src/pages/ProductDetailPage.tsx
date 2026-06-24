@@ -1,4 +1,4 @@
-import { Edit3, Heart, Minus, Plus, ShoppingCart } from "lucide-react";
+import { Edit3, Minus, Plus, ShoppingCart } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { StatusMessage } from "../components/StatusMessage";
@@ -8,15 +8,12 @@ import { addCartItem, getProduct } from "../lib/api";
 import { getLocalProduct, isLocalProductId } from "../lib/localProducts";
 import type { Product } from "../types";
 
-const PRODUCT_SIZES = ["S", "M", "L", "XL", "2XL"];
-
 export function ProductDetailPage() {
   const { id } = useParams();
   const { accessToken, user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [product, setProduct] = useState<Product | null>(null);
-  const [selectedSize, setSelectedSize] = useState(PRODUCT_SIZES[0]);
   const [quantity, setQuantity] = useState(1);
   const [error, setError] = useState("");
   const [cartError, setCartError] = useState("");
@@ -109,7 +106,7 @@ export function ProductDetailPage() {
     }
 
     if (isLocalProduct) {
-      setCartError("Demo products can be browsed, but only saved products can be added to the cart.");
+      setCartError("Locally stored products can be browsed, but only server products can be added to the cart.");
       return;
     }
 
@@ -148,24 +145,13 @@ export function ProductDetailPage() {
         )}
       </div>
       <div className="flex flex-col gap-3.5 p-[clamp(1rem,2.8vw,1.5rem)]">
-        <div className="grid grid-cols-[1fr_auto] items-start gap-4">
-          <div>
-            <h1 className="text-[clamp(2rem,4.2vw,3rem)] leading-none font-black uppercase text-black">
-              {product.title}
-            </h1>
-            <p className="mt-1 text-[clamp(0.95rem,1.2vw,1.05rem)] leading-snug font-semibold text-black">
-              StoreFront product
-            </p>
-          </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="size-10 bg-transparent text-black"
-            aria-label="Save product"
-          >
-            <Heart aria-hidden="true" size={26} />
-          </Button>
+        <div>
+          <h1 className="text-[clamp(2rem,4.2vw,3rem)] leading-none font-black uppercase text-black">
+            {product.title}
+          </h1>
+          <p className="mt-1 text-[clamp(0.95rem,1.2vw,1.05rem)] leading-snug font-semibold text-black">
+            StoreFront product
+          </p>
         </div>
         <p className="max-w-3xl text-[clamp(0.95rem,1.2vw,1.05rem)] leading-snug font-semibold text-black">
           {product.description}
@@ -183,32 +169,6 @@ export function ProductDetailPage() {
         <strong className="text-xl font-bold text-black">
           {formatCurrency(product.unit_price)}
         </strong>
-        <div className="flex flex-col gap-2 text-sm font-bold text-black">
-          <div className="flex justify-between gap-4">
-            <span>
-              Size: <strong>{selectedSize}</strong>
-            </span>
-            <a href="#size-chart" className="underline">
-              Size chart
-            </a>
-          </div>
-          <div className="grid grid-cols-5 gap-1 max-[820px]:grid-cols-3" role="radiogroup" aria-label="Size">
-            {PRODUCT_SIZES.map((size) => (
-              <Button
-                key={size}
-                type="button"
-                variant="outline"
-                className={`min-h-9 rounded-md bg-white text-base font-bold text-black ${
-                  selectedSize === size ? "border-3 border-black" : "border-neutral-200"
-                }`}
-                aria-pressed={selectedSize === size}
-                onClick={() => setSelectedSize(size)}
-              >
-                {size}
-              </Button>
-            ))}
-          </div>
-        </div>
         <div className="flex flex-col gap-2 text-sm font-bold text-black">
           <span>
             Color: <strong>Black</strong>
