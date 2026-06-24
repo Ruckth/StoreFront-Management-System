@@ -72,6 +72,36 @@ class AuthenticationAPITests(APITestCase):
         self.assertIn("refresh", response.data)
         self.assertEqual(response.data["user"]["email"], "buyer@example.com")
 
+    def test_login_rejects_wrong_password(self):
+        User.objects.create_user(
+            email="buyer@example.com",
+            password="StrongPassword123",
+            role=User.Role.BUYER,
+        )
+
+        response = self.client.post(
+            reverse("auth-login"),
+            {"email": "buyer@example.com", "password": "WrongPassword123"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertIn("detail", response.data)
+        self.assertNotIn("access", response.data)
+        self.assertNotIn("refresh", response.data)
+        self.assertNotIn("user", response.data)
+
+    def test_refresh_token_rejects_invalid_token(self):
+        response = self.client.post(
+            reverse("token-refresh"),
+            {"refresh": "not-a-valid-refresh-token"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertIn("detail", response.data)
+        self.assertNotIn("access", response.data)
+
     def test_current_user_requires_authentication(self):
         response = self.client.get(reverse("auth-me"))
 

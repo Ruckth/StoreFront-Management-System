@@ -78,6 +78,20 @@ class ProductAPITests(APITestCase):
         self.assertEqual(response.data["title"], "Notebook")
         self.assertEqual(response.data["seller"]["email"], "seller@example.com")
 
+    def test_client_cannot_spoof_product_seller_on_create(self):
+        self.client.force_authenticate(self.seller)
+        payload = self.product_payload(seller=self.other_seller.id)
+
+        response = self.client.post(
+            reverse("product-list"),
+            payload,
+            format="multipart",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["seller"]["email"], "seller@example.com")
+        self.assertEqual(Product.objects.get(id=response.data["id"]).seller, self.seller)
+
     def test_seller_can_list_and_retrieve_products(self):
         product = self.create_product(title="Notebook")
         self.create_product(seller=self.other_seller, title="Pen")
@@ -135,6 +149,21 @@ class ProductAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["title"], "Updated Notebook")
+
+    def test_client_cannot_spoof_product_seller_on_update(self):
+        product = self.create_product()
+        self.client.force_authenticate(self.seller)
+
+        response = self.client.patch(
+            reverse("product-detail", args=[product.id]),
+            {"seller": self.other_seller.id, "title": "Updated Notebook"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        product.refresh_from_db()
+        self.assertEqual(product.seller, self.seller)
+        self.assertEqual(product.title, "Updated Notebook")
 
     def test_seller_cannot_edit_another_sellers_product(self):
         product = self.create_product(seller=self.other_seller)
@@ -232,6 +261,74 @@ class ProductAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("image", response.data)
 
+    def test_missing_title_is_rejected(self):
+        self.client.force_authenticate(self.seller)
+        payload = self.product_payload()
+        payload.pop("title")
+
+        response = self.client.post(
+            reverse("product-list"),
+            payload,
+            format="multipart",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("title", response.data)
+
+    def test_blank_title_is_rejected(self):
+        self.client.force_authenticate(self.seller)
+
+        response = self.client.post(
+            reverse("product-list"),
+            self.product_payload(title=""),
+            format="multipart",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("title", response.data)
+
+    def test_zero_price_is_rejected(self):
+        self.client.force_authenticate(self.seller)
+
+        response = self.client.post(
+            reverse("product-list"),
+            self.product_payload(unit_price="0.00"),
+            format="multipart",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("unit_price", response.data)
+
+    def test_blank_title_update_is_rejected(self):
+        product = self.create_product()
+        self.client.force_authenticate(self.seller)
+
+        response = self.client.patch(
+            reverse("product-detail", args=[product.id]),
+            {"title": ""},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("title", response.data)
+        product.refresh_from_db()
+        self.assertEqual(product.title, "Notebook")
+
+    def test_zero_price_update_is_rejected(self):
+        product = self.create_product()
+        self.client.force_authenticate(self.seller)
+
+        response = self.client.patch(
+            reverse("product-detail", args=[product.id]),
+            {"unit_price": "0.00"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("unit_price", response.data)
+        product.refresh_from_db()
+        self.assertEqual(product.unit_price, Decimal("129.00"))
+
     def test_negative_price_is_rejected(self):
         self.client.force_authenticate(self.seller)
 
@@ -244,6 +341,18 @@ class ProductAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("unit_price", response.data)
 
+    def test_zero_quantity_is_allowed(self):
+        self.client.force_authenticate(self.seller)
+
+        response = self.client.post(
+            reverse("product-list"),
+            self.product_payload(available_quantity=0),
+            format="multipart",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["available_quantity"], 0)
+
     def test_negative_quantity_is_rejected(self):
         self.client.force_authenticate(self.seller)
 
@@ -255,6 +364,21 @@ class ProductAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("available_quantity", response.data)
+
+    def test_negative_quantity_update_is_rejected(self):
+        product = self.create_product()
+        self.client.force_authenticate(self.seller)
+
+        response = self.client.patch(
+            reverse("product-detail", args=[product.id]),
+            {"available_quantity": -1},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("available_quantity", response.data)
+        product.refresh_from_db()
+        self.assertEqual(product.available_quantity, 10)
 
     def test_product_search_filter_matches_title_or_description(self):
         self.create_product(title="Notebook", description="Dotted paper")
