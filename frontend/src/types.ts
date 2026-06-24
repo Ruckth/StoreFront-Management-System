@@ -40,6 +40,10 @@ export type ProductFormValues = {
   image: File | null;
 };
 
+export type ProductMutationValues = Omit<ProductFormValues, "image"> & {
+  image?: string;
+};
+
 export type CartProduct = Pick<
   Product,
   "id" | "title" | "image" | "unit_price" | "available_quantity"

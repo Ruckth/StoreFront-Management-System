@@ -1,6 +1,7 @@
 import { Search, ShoppingCart } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { ProductImage } from "../components/ProductImage";
 import { StatusMessage } from "../components/StatusMessage";
 import { Button } from "../components/ui/button";
 import { Checkbox } from "../components/ui/checkbox";
@@ -193,18 +194,11 @@ export function ProductListPage() {
         {products.map((product) => (
           <article className="catalog-card" key={product.id}>
             <Link to={`/products/${product.id}`} className="catalog-card-link">
-              {product.image ? (
-                <img
-                  src={product.image}
-                  alt={product.title}
-                  className="catalog-card-image"
-                />
-              ) : (
-                <div
-                  className="catalog-card-image catalog-card-placeholder"
-                  aria-hidden="true"
-                />
-              )}
+              <ProductImage
+                src={product.image}
+                alt={product.title}
+                className="catalog-card-image"
+              />
               <div className="catalog-card-body">
                 <div>
                   <span>

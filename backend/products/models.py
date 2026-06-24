@@ -12,7 +12,7 @@ class Product(models.Model):
         on_delete=models.CASCADE,
         related_name="products",
     )
-    image = models.ImageField(upload_to="products/")
+    image = models.URLField(max_length=2048)
     title = models.CharField(max_length=255)
     description = models.TextField()
     unit_price = models.DecimalField(

@@ -1,6 +1,7 @@
 import { Edit3, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { ProductImage } from "../components/ProductImage";
 import { StatusMessage } from "../components/StatusMessage";
 import { Button } from "../components/ui/button";
 import { useAuth } from "../hooks/useAuth";
@@ -136,7 +137,7 @@ export function SellerDashboardPage() {
                 <tr key={product.id}>
                   <td className="border-b p-3">
                     <div className="flex items-center gap-3 font-bold">
-                      <img
+                      <ProductImage
                         src={product.image}
                         alt=""
                         className="h-12 w-12 rounded-md bg-muted object-cover"

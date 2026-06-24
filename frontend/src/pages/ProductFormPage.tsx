@@ -6,7 +6,8 @@ import { StatusMessage } from "../components/StatusMessage";
 import { Button } from "../components/ui/button";
 import { useAuth } from "../hooks/useAuth";
 import { createProduct, getProduct, updateProduct } from "../lib/api";
-import type { Product, ProductFormValues } from "../types";
+import { uploadProductImage } from "../lib/uploadthing";
+import type { Product, ProductFormValues, ProductMutationValues } from "../types";
 
 type ProductFormPageProps = {
   mode: "create" | "edit";
@@ -76,7 +77,8 @@ export function ProductFormPage({ mode }: ProductFormPageProps) {
       setError("");
 
       try {
-        await createProduct(values, accessToken);
+        const productValues = await productMutationValues(values, accessToken, true);
+        await createProduct(productValues, accessToken);
         navigate("/seller/products");
       } catch (caughtError) {
         setError(
@@ -100,7 +102,8 @@ export function ProductFormPage({ mode }: ProductFormPageProps) {
 
     try {
       if (id) {
-        await updateProduct(id, values, accessToken);
+        const productValues = await productMutationValues(values, accessToken, false);
+        await updateProduct(id, productValues, accessToken);
       }
       navigate("/seller/products");
     } catch (caughtError) {
@@ -156,4 +159,26 @@ export function ProductFormPage({ mode }: ProductFormPageProps) {
       )}
     </section>
   );
+}
+
+async function productMutationValues(
+  values: ProductFormValues,
+  token: string,
+  requireImage: boolean,
+): Promise<ProductMutationValues> {
+  if (requireImage && !values.image) {
+    throw new Error("Product image is required.");
+  }
+
+  const image = values.image
+    ? await uploadProductImage(values.image, token)
+    : undefined;
+
+  return {
+    title: values.title,
+    description: values.description,
+    unit_price: values.unit_price,
+    available_quantity: values.available_quantity,
+    ...(image ? { image } : {}),
+  };
 }

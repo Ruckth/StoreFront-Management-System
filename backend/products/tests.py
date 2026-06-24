@@ -1,30 +1,21 @@
 from decimal import Decimal
-from io import BytesIO
+from io import StringIO
 
-from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import override_settings
+from django.core.management import call_command
+from django.db.models import ProtectedError
 from django.urls import reverse
-from PIL import Image
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from orders.models import Cart, CartItem, Order, OrderItem
 from products.models import Product
 from users.models import User
 
 
-def image_file(name="product.jpg"):
-    image = Image.new("RGB", (20, 20), color="blue")
-    buffer = BytesIO()
-    image.save(buffer, format="JPEG")
-    buffer.seek(0)
-    return SimpleUploadedFile(name, buffer.read(), content_type="image/jpeg")
+def image_url(name="product.jpg"):
+    return f"https://utfs.io/f/{name}"
 
 
-def invalid_image_file(name="product.txt"):
-    return SimpleUploadedFile(name, b"not an image", content_type="text/plain")
-
-
-@override_settings(MEDIA_ROOT="/tmp/storefront-test-media")
 class ProductAPITests(APITestCase):
     def setUp(self):
         self.seller = User.objects.create_user(
@@ -45,7 +36,7 @@ class ProductAPITests(APITestCase):
 
     def product_payload(self, **overrides):
         data = {
-            "image": image_file(),
+            "image": image_url(),
             "title": "Notebook",
             "description": "A5 dotted notebook",
             "unit_price": "129.00",
@@ -58,7 +49,7 @@ class ProductAPITests(APITestCase):
         seller = seller or self.seller
         return Product.objects.create(
             seller=seller,
-            image=image_file(),
+            image=overrides.get("image", image_url()),
             title=overrides.get("title", "Notebook"),
             description=overrides.get("description", "A5 dotted notebook"),
             unit_price=Decimal(overrides.get("unit_price", "129.00")),
@@ -71,7 +62,7 @@ class ProductAPITests(APITestCase):
         response = self.client.post(
             reverse("product-list"),
             self.product_payload(),
-            format="multipart",
+            format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -85,7 +76,7 @@ class ProductAPITests(APITestCase):
         response = self.client.post(
             reverse("product-list"),
             payload,
-            format="multipart",
+            format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -111,7 +102,7 @@ class ProductAPITests(APITestCase):
         response = self.client.post(
             reverse("product-list"),
             self.product_payload(),
-            format="multipart",
+            format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
@@ -120,7 +111,7 @@ class ProductAPITests(APITestCase):
         response = self.client.post(
             reverse("product-list"),
             self.product_payload(),
-            format="multipart",
+            format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
@@ -243,7 +234,7 @@ class ProductAPITests(APITestCase):
         response = self.client.post(
             reverse("product-list"),
             payload,
-            format="multipart",
+            format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -254,8 +245,8 @@ class ProductAPITests(APITestCase):
 
         response = self.client.post(
             reverse("product-list"),
-            self.product_payload(image=invalid_image_file()),
-            format="multipart",
+            self.product_payload(image="not-an-image-url"),
+            format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -269,7 +260,7 @@ class ProductAPITests(APITestCase):
         response = self.client.post(
             reverse("product-list"),
             payload,
-            format="multipart",
+            format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -281,7 +272,7 @@ class ProductAPITests(APITestCase):
         response = self.client.post(
             reverse("product-list"),
             self.product_payload(title=""),
-            format="multipart",
+            format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -293,7 +284,7 @@ class ProductAPITests(APITestCase):
         response = self.client.post(
             reverse("product-list"),
             self.product_payload(unit_price="0.00"),
-            format="multipart",
+            format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -335,7 +326,7 @@ class ProductAPITests(APITestCase):
         response = self.client.post(
             reverse("product-list"),
             self.product_payload(unit_price="-1.00"),
-            format="multipart",
+            format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -347,7 +338,7 @@ class ProductAPITests(APITestCase):
         response = self.client.post(
             reverse("product-list"),
             self.product_payload(available_quantity=0),
-            format="multipart",
+            format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -359,7 +350,7 @@ class ProductAPITests(APITestCase):
         response = self.client.post(
             reverse("product-list"),
             self.product_payload(available_quantity=-1),
-            format="multipart",
+            format="json",
         )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -399,3 +390,94 @@ class ProductAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]["title"], "Available")
+
+    def test_seller_can_update_product_image_url(self):
+        product = self.create_product()
+        self.client.force_authenticate(self.seller)
+
+        response = self.client.patch(
+            reverse("product-detail", args=[product.id]),
+            {"image": image_url("updated-product.jpg")},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["image"], image_url("updated-product.jpg"))
+        product.refresh_from_db()
+        self.assertEqual(product.image, image_url("updated-product.jpg"))
+
+    def test_invalid_image_update_is_rejected(self):
+        product = self.create_product()
+        self.client.force_authenticate(self.seller)
+
+        response = self.client.patch(
+            reverse("product-detail", args=[product.id]),
+            {"image": "not-an-image-url"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("image", response.data)
+        product.refresh_from_db()
+        self.assertEqual(product.image, image_url())
+
+
+class ProductCleanupCommandTests(APITestCase):
+    def setUp(self):
+        self.seller = User.objects.create_user(
+            email="seller@example.com",
+            password="StrongPassword123",
+            role=User.Role.SELLER,
+        )
+        self.buyer = User.objects.create_user(
+            email="buyer@example.com",
+            password="StrongPassword123",
+            role=User.Role.BUYER,
+        )
+
+    def create_product(self, **overrides):
+        return Product.objects.create(
+            seller=self.seller,
+            image=overrides.get("image", image_url(overrides.get("title", "product"))),
+            title=overrides.get("title", "Notebook"),
+            description=overrides.get("description", "A5 dotted notebook"),
+            unit_price=Decimal(overrides.get("unit_price", "129.00")),
+            available_quantity=overrides.get("available_quantity", 10),
+        )
+
+    def test_cleanup_deletes_carts_and_unprotected_products(self):
+        protected_product = self.create_product(title="Ordered")
+        unprotected_product = self.create_product(title="Unordered")
+        cart = Cart.objects.create(buyer=self.buyer)
+        CartItem.objects.create(cart=cart, product=unprotected_product, quantity=1)
+        order = Order.objects.create(buyer=self.buyer, total_price=Decimal("129.00"))
+        OrderItem.objects.create(
+            order=order,
+            product=protected_product,
+            product_title_snapshot=protected_product.title,
+            unit_price_snapshot=protected_product.unit_price,
+            quantity=1,
+        )
+        output = StringIO()
+
+        call_command("cleanup_product_uploadthing_migration", stdout=output)
+
+        self.assertFalse(Cart.objects.exists())
+        self.assertFalse(Product.objects.filter(id=unprotected_product.id).exists())
+        protected_product.refresh_from_db()
+        self.assertEqual(protected_product.available_quantity, 0)
+        self.assertIn("Deleted carts", output.getvalue())
+
+    def test_ordered_products_are_protected_from_regular_delete(self):
+        protected_product = self.create_product(title="Ordered")
+        order = Order.objects.create(buyer=self.buyer, total_price=Decimal("129.00"))
+        OrderItem.objects.create(
+            order=order,
+            product=protected_product,
+            product_title_snapshot=protected_product.title,
+            unit_price_snapshot=protected_product.unit_price,
+            quantity=1,
+        )
+
+        with self.assertRaises(ProtectedError):
+            protected_product.delete()

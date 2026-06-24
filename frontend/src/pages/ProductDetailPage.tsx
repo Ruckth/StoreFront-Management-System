@@ -1,6 +1,7 @@
 import { Edit3, Minus, Plus, ShoppingCart } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { ProductImage } from "../components/ProductImage";
 import { StatusMessage } from "../components/StatusMessage";
 import { Button } from "../components/ui/button";
 import { useAuth } from "../hooks/useAuth";
@@ -131,18 +132,12 @@ export function ProductDetailPage() {
   return (
     <section className="mx-auto w-[min(860px,100%)] bg-white">
       <div className="bg-neutral-200">
-        {product.image ? (
-          <img
-            src={product.image}
-            alt={product.title}
-            className="aspect-[4/5] max-h-[72vh] w-full bg-neutral-200 object-contain"
-          />
-        ) : (
-          <div
-            className="aspect-[4/5] max-h-[72vh] w-full bg-[linear-gradient(135deg,rgba(255,255,255,0.72),rgba(220,220,220,0.75)),#eeeeee]"
-            aria-hidden="true"
-          />
-        )}
+        <ProductImage
+          src={product.image}
+          alt={product.title}
+          className="aspect-[4/5] max-h-[72vh] w-full bg-neutral-200 object-contain"
+          fallbackClassName="bg-[linear-gradient(135deg,rgba(255,255,255,0.72),rgba(220,220,220,0.75)),#eeeeee]"
+        />
       </div>
       <div className="flex flex-col gap-3.5 p-[clamp(1rem,2.8vw,1.5rem)]">
         <div>
@@ -174,9 +169,7 @@ export function ProductDetailPage() {
             Color: <strong>Black</strong>
           </span>
           <div className="flex h-18 w-15 items-center justify-center overflow-hidden rounded-md bg-neutral-200">
-            {product.image ? (
-              <img src={product.image} alt="" className="h-full w-full object-cover" />
-            ) : null}
+            <ProductImage src={product.image} alt="" className="h-full w-full object-cover" />
           </div>
         </div>
         <div className="grid grid-cols-[minmax(9rem,0.32fr)_1fr] gap-3 border-t pt-3.5 max-[820px]:grid-cols-1">

@@ -5,7 +5,7 @@ This document defines the Phase 1 REST API contract for backend and frontend imp
 ## API Defaults
 
 - Base URL: `/api`
-- Request format: JSON, except product image upload uses `multipart/form-data`
+- Request format: JSON
 - Response format: JSON
 - Auth: JWT bearer token
 - Auth header: `Authorization: Bearer <access_token>`
@@ -168,7 +168,7 @@ Response `200 OK`:
       "id": 2,
       "email": "seller@example.com"
     },
-    "image": "http://localhost:8000/media/products/example.jpg",
+    "image": "https://utfs.io/f/example.jpg",
     "title": "Notebook",
     "description": "A5 dotted notebook",
     "unit_price": "129.00",
@@ -197,17 +197,19 @@ Errors:
 
 Access: seller only
 
-Content type: `multipart/form-data`
+Content type: `application/json`
 
-Request fields:
+Request:
 
-| Field | Type | Required |
-| --- | --- | --- |
-| `image` | File | Yes |
-| `title` | String | Yes |
-| `description` | String | Yes |
-| `unit_price` | Decimal | Yes |
-| `available_quantity` | Integer | Yes |
+```json
+{
+  "image": "https://utfs.io/f/example.jpg",
+  "title": "Notebook",
+  "description": "A5 dotted notebook",
+  "unit_price": "129.00",
+  "available_quantity": 10
+}
+```
 
 Response `201 Created`: product detail object.
 
@@ -223,12 +225,13 @@ Errors:
 
 Access: owning seller only
 
-Content type: `multipart/form-data` or JSON when image is unchanged.
+Content type: `application/json`
 
 Request:
 
 ```json
 {
+  "image": "https://utfs.io/f/updated-example.jpg",
   "title": "Updated Notebook",
   "unit_price": "149.00",
   "available_quantity": 8
@@ -278,7 +281,7 @@ Response `200 OK`:
       "product": {
         "id": 1,
         "title": "Notebook",
-        "image": "http://localhost:8000/media/products/example.jpg",
+        "image": "https://utfs.io/f/example.jpg",
         "unit_price": "129.00",
         "available_quantity": 10
       },
@@ -320,7 +323,7 @@ Response `201 Created`:
   "product": {
     "id": 1,
     "title": "Notebook",
-    "image": "http://localhost:8000/media/products/example.jpg",
+    "image": "https://utfs.io/f/example.jpg",
     "unit_price": "129.00",
     "available_quantity": 10
   },
