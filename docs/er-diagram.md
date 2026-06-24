@@ -103,7 +103,7 @@ Stores seller-created product listings.
 | --- | --- | --- | --- |
 | `id` | Integer | Primary key | Auto-generated |
 | `seller_id` | Integer | Foreign key to `User.id` | Must reference a seller |
-| `image` | String/File | Required | Local upload path |
+| `image` | URL string | Required | UploadThing public URL |
 | `title` | String | Required | Product name |
 | `description` | Text | Required | Product details |
 | `unit_price` | Decimal | Required | Must be greater than 0 |

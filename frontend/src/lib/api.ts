@@ -6,7 +6,7 @@ import type {
   OrderDetail,
   OrderSummary,
   Product,
-  ProductFormValues,
+  ProductMutationValues,
   Role,
   User,
 } from "../types";
@@ -117,22 +117,22 @@ export function getProduct(id: string | number) {
   return request<Product>(`/products/${id}/`);
 }
 
-export function createProduct(values: ProductFormValues, token: string) {
+export function createProduct(values: ProductMutationValues, token: string) {
   return request<Product>("/products/", {
     method: "POST",
-    body: productFormData(values, true),
+    body: JSON.stringify(productPayload(values)),
     token,
   });
 }
 
 export function updateProduct(
   id: string | number,
-  values: ProductFormValues,
+  values: ProductMutationValues,
   token: string,
 ) {
   return request<Product>(`/products/${id}/`, {
     method: "PATCH",
-    body: productFormData(values, false),
+    body: JSON.stringify(productPayload(values)),
     token,
   });
 }
@@ -191,18 +191,12 @@ export function getOrder(id: string | number, token: string) {
   return request<OrderDetail>(`/orders/${id}/`, { token });
 }
 
-function productFormData(values: ProductFormValues, requireImage: boolean) {
-  const formData = new FormData();
-  formData.set("title", values.title.trim());
-  formData.set("description", values.description.trim());
-  formData.set("unit_price", values.unit_price);
-  formData.set("available_quantity", values.available_quantity);
-
-  if (values.image) {
-    formData.set("image", values.image);
-  } else if (requireImage) {
-    formData.set("image", "");
-  }
-
-  return formData;
+function productPayload(values: ProductMutationValues) {
+  return {
+    title: values.title.trim(),
+    description: values.description.trim(),
+    unit_price: values.unit_price,
+    available_quantity: values.available_quantity,
+    ...(values.image ? { image: values.image } : {}),
+  };
 }

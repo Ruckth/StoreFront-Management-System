@@ -1,10 +1,6 @@
 from decimal import Decimal
-from io import BytesIO
 
-from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import override_settings
 from django.urls import reverse
-from PIL import Image
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -13,15 +9,10 @@ from products.models import Product
 from users.models import User
 
 
-def image_file(name="product.jpg"):
-    image = Image.new("RGB", (20, 20), color="green")
-    buffer = BytesIO()
-    image.save(buffer, format="JPEG")
-    buffer.seek(0)
-    return SimpleUploadedFile(name, buffer.read(), content_type="image/jpeg")
+def image_url(name="product.jpg"):
+    return f"https://utfs.io/f/{name}"
 
 
-@override_settings(MEDIA_ROOT="/tmp/storefront-test-media")
 class CartOrderAPITests(APITestCase):
     def setUp(self):
         self.seller = User.objects.create_user(
@@ -41,7 +32,7 @@ class CartOrderAPITests(APITestCase):
         )
         self.product = Product.objects.create(
             seller=self.seller,
-            image=image_file(),
+            image=image_url(),
             title="Notebook",
             description="A5 dotted notebook",
             unit_price=Decimal("129.00"),
@@ -313,7 +304,7 @@ class CartOrderAPITests(APITestCase):
     def test_checkout_insufficient_stock_does_not_partially_reduce_inventory(self):
         second_product = Product.objects.create(
             seller=self.seller,
-            image=image_file("second-product.jpg"),
+            image=image_url("second-product.jpg"),
             title="Pen",
             description="Blue ink pen",
             unit_price=Decimal("20.00"),
