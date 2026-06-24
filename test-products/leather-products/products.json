@@ -1,0 +1,112 @@
+[
+  {
+    "id": "classic-leather-wallet",
+    "name": "Classic Leather Wallet",
+    "description": "Slim full-grain wallet with six card slots",
+    "price": "49.00",
+    "currency": "USD",
+    "available_quantity": 12,
+    "category": "Leather Goods",
+    "image": "images/classic-leather-wallet.png",
+    "alt_text": "Classic Leather Wallet product image with price"
+  },
+  {
+    "id": "executive-leather-bag",
+    "name": "Executive Leather Bag",
+    "description": "Structured work bag with laptop sleeve",
+    "price": "189.00",
+    "currency": "USD",
+    "available_quantity": 7,
+    "category": "Leather Goods",
+    "image": "images/executive-leather-bag.png",
+    "alt_text": "Executive Leather Bag product image with price"
+  },
+  {
+    "id": "vintage-leather-belt",
+    "name": "Vintage Leather Belt",
+    "description": "Hand-finished belt with brushed metal buckle",
+    "price": "64.00",
+    "currency": "USD",
+    "available_quantity": 15,
+    "category": "Leather Goods",
+    "image": "images/vintage-leather-belt.png",
+    "alt_text": "Vintage Leather Belt product image with price"
+  },
+  {
+    "id": "artisan-card-holder",
+    "name": "Artisan Card Holder",
+    "description": "Minimal leather holder for daily carry",
+    "price": "35.00",
+    "currency": "USD",
+    "available_quantity": 20,
+    "category": "Leather Goods",
+    "image": "images/artisan-card-holder.png",
+    "alt_text": "Artisan Card Holder product image with price"
+  },
+  {
+    "id": "weekender-duffle",
+    "name": "Weekender Duffle",
+    "description": "Spacious travel duffle in rich brown leather",
+    "price": "249.00",
+    "currency": "USD",
+    "available_quantity": 5,
+    "category": "Leather Goods",
+    "image": "images/weekender-duffle.png",
+    "alt_text": "Weekender Duffle product image with price"
+  },
+  {
+    "id": "leather-key-organizer",
+    "name": "Leather Key Organizer",
+    "description": "Compact organizer with snap closure",
+    "price": "28.00",
+    "currency": "USD",
+    "available_quantity": 24,
+    "category": "Leather Goods",
+    "image": "images/leather-key-organizer.png",
+    "alt_text": "Leather Key Organizer product image with price"
+  },
+  {
+    "id": "passport-cover",
+    "name": "Passport Cover",
+    "description": "Protective travel cover with document pockets",
+    "price": "42.00",
+    "currency": "USD",
+    "available_quantity": 18,
+    "category": "Leather Goods",
+    "image": "images/passport-cover.png",
+    "alt_text": "Passport Cover product image with price"
+  },
+  {
+    "id": "leather-journal-cover",
+    "name": "Leather Journal Cover",
+    "description": "Refillable notebook cover with pen loop",
+    "price": "58.00",
+    "currency": "USD",
+    "available_quantity": 11,
+    "category": "Leather Goods",
+    "image": "images/leather-journal-cover.png",
+    "alt_text": "Leather Journal Cover product image with price"
+  },
+  {
+    "id": "crossbody-satchel",
+    "name": "Crossbody Satchel",
+    "description": "Everyday satchel with adjustable strap",
+    "price": "136.00",
+    "currency": "USD",
+    "available_quantity": 9,
+    "category": "Leather Goods",
+    "image": "images/crossbody-satchel.png",
+    "alt_text": "Crossbody Satchel product image with price"
+  },
+  {
+    "id": "watch-strap-set",
+    "name": "Watch Strap Set",
+    "description": "Premium leather straps in two tones",
+    "price": "72.00",
+    "currency": "USD",
+    "available_quantity": 14,
+    "category": "Leather Goods",
+    "image": "images/watch-strap-set.png",
+    "alt_text": "Watch Strap Set product image with price"
+  }
+]
