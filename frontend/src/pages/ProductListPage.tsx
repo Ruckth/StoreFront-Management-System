@@ -11,7 +11,6 @@ import {
   isLocalProductId,
   listLocalProducts,
   mergeProducts,
-  seedDemoProducts,
 } from "../lib/localProducts";
 import type { Product } from "../types";
 
@@ -61,9 +60,7 @@ export function ProductListPage() {
         }
       } catch (caughtError) {
         if (isMounted) {
-          const storedProducts = listLocalProducts();
-          const fallbackProducts =
-            storedProducts.length > 0 ? storedProducts : seedDemoProducts();
+          const fallbackProducts = listLocalProducts();
           const localProducts = filterProducts(fallbackProducts, search, stockFilter);
           setProducts(localProducts);
           setError(fallbackProducts.length > 0 ? "" : caughtError instanceof Error
@@ -96,7 +93,7 @@ export function ProductListPage() {
     }
 
     if (isLocalProductId(product.id)) {
-      setCartError("Demo products can be browsed, but only saved products can be added to the cart.");
+      setCartError("Locally stored products can be browsed, but only server products can be added to the cart.");
       return;
     }
 
@@ -235,7 +232,7 @@ export function ProductListPage() {
               }
               title={
                 isLocalProductId(product.id)
-                  ? "Only saved products can be added to cart"
+                  ? "Only server products can be added to cart"
                   : `Add ${product.title} to cart`
               }
               onClick={() => handleAddToCart(product)}
