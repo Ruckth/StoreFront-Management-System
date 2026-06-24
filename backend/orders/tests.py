@@ -93,6 +93,24 @@ class CartOrderAPITests(APITestCase):
         self.assertEqual(CartItem.objects.count(), 1)
         self.assertEqual(CartItem.objects.get().quantity, 4)
 
+    def test_duplicate_add_cannot_exceed_available_stock(self):
+        self.authenticate_buyer()
+        self.client.post(
+            reverse("cart-item-list"),
+            {"product_id": self.product.id, "quantity": 8},
+            format="json",
+        )
+
+        response = self.client.post(
+            reverse("cart-item-list"),
+            {"product_id": self.product.id, "quantity": 3},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("quantity", response.data)
+        self.assertEqual(CartItem.objects.get().quantity, 8)
+
     def test_cart_item_quantity_must_be_positive(self):
         self.authenticate_buyer()
 
@@ -161,6 +179,21 @@ class CartOrderAPITests(APITestCase):
 
         self.assertEqual(zero_response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(over_stock_response.status_code, status.HTTP_400_BAD_REQUEST)
+        item.refresh_from_db()
+        self.assertEqual(item.quantity, 2)
+
+    def test_buyer_cannot_update_cart_item_to_negative_quantity(self):
+        item = self.add_item(quantity=2)
+        self.authenticate_buyer()
+
+        response = self.client.patch(
+            reverse("cart-item-detail", args=[item.id]),
+            {"quantity": -1},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("quantity", response.data)
         item.refresh_from_db()
         self.assertEqual(item.quantity, 2)
 
@@ -277,6 +310,34 @@ class CartOrderAPITests(APITestCase):
         self.assertEqual(self.product.available_quantity, 3)
         self.assertEqual(Order.objects.count(), 0)
 
+    def test_checkout_insufficient_stock_does_not_partially_reduce_inventory(self):
+        second_product = Product.objects.create(
+            seller=self.seller,
+            image=image_file("second-product.jpg"),
+            title="Pen",
+            description="Blue ink pen",
+            unit_price=Decimal("20.00"),
+            available_quantity=1,
+        )
+        cart = Cart.objects.create(buyer=self.buyer)
+        CartItem.objects.create(cart=cart, product=self.product, quantity=2)
+        CartItem.objects.create(cart=cart, product=second_product, quantity=1)
+        second_product.available_quantity = 0
+        second_product.save(update_fields=("available_quantity",))
+        self.authenticate_buyer()
+
+        response = self.client.post(reverse("cart-checkout"), {}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Insufficient stock", response.data["detail"])
+        self.product.refresh_from_db()
+        second_product.refresh_from_db()
+        cart.refresh_from_db()
+        self.assertEqual(self.product.available_quantity, 10)
+        self.assertEqual(second_product.available_quantity, 0)
+        self.assertEqual(cart.status, Cart.Status.ACTIVE)
+        self.assertEqual(Order.objects.count(), 0)
+
     def test_order_snapshots_remain_stable_after_product_edit(self):
         self.add_item(quantity=1)
         self.authenticate_buyer()
@@ -305,6 +366,16 @@ class CartOrderAPITests(APITestCase):
         self.assertEqual(list_response.status_code, status.HTTP_200_OK)
         self.assertEqual([order["id"] for order in list_response.data], [own_order.id])
         self.assertEqual(other_detail_response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_seller_cannot_list_or_retrieve_orders(self):
+        order = Order.objects.create(buyer=self.buyer, total_price=Decimal("1.00"))
+        self.client.force_authenticate(self.seller)
+
+        list_response = self.client.get(reverse("order-list"))
+        detail_response = self.client.get(reverse("order-detail", args=[order.id]))
+
+        self.assertEqual(list_response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(detail_response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_order_list_item_count_returns_order_line_count(self):
         self.add_item(quantity=2)
