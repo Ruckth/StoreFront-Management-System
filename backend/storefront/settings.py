@@ -87,6 +87,16 @@ def railway_postgres_config():
     }
 
 
+def default_media_root(volume_mount_path):
+    if volume_mount_path:
+        return Path(volume_mount_path) / "media"
+    return BASE_DIR / "media"
+
+
+def should_serve_media_files(debug, is_railway, volume_mount_path):
+    return debug or is_railway or bool(volume_mount_path)
+
+
 DEBUG = env_bool("DEBUG", not IS_RAILWAY)
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-only-storefront-secret-key-change-before-production")
 if not DEBUG and SECRET_KEY == "dev-only-storefront-secret-key-change-before-production":
@@ -195,14 +205,13 @@ RAILWAY_VOLUME_MOUNT_PATH = os.getenv("RAILWAY_VOLUME_MOUNT_PATH")
 MEDIA_ROOT = Path(
     os.getenv(
         "MEDIA_ROOT",
-        str(
-            Path(RAILWAY_VOLUME_MOUNT_PATH) / "media"
-            if RAILWAY_VOLUME_MOUNT_PATH
-            else BASE_DIR / "media"
-        ),
+        str(default_media_root(RAILWAY_VOLUME_MOUNT_PATH)),
     )
 )
-SERVE_MEDIA_FILES = env_bool("SERVE_MEDIA_FILES", DEBUG or bool(RAILWAY_VOLUME_MOUNT_PATH))
+SERVE_MEDIA_FILES = env_bool(
+    "SERVE_MEDIA_FILES",
+    should_serve_media_files(DEBUG, IS_RAILWAY, RAILWAY_VOLUME_MOUNT_PATH),
+)
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "users.User"
